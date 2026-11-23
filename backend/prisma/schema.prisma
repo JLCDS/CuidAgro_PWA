@@ -1,0 +1,266 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum EstadoUsuario {
+  ACTIVO
+  INACTIVO
+}
+
+model Rol {
+  id          String    @id @default(uuid()) @db.Uuid
+  nombre      String    @unique
+  descripcion String
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  usuarios    Usuario[]
+
+  @@map("roles")
+}
+
+model Finca {
+  id          String         @id @default(uuid()) @db.Uuid
+  nombre      String
+  ubicacion   String?
+  descripcion String?
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+  usuarios    UsuarioFinca[]
+  vacunos     Vacuno[]
+  lotes       LoteOviparo[]
+  alimentos   Alimento[]
+
+  @@index([nombre])
+  @@map("fincas")
+}
+
+model Usuario {
+  id               String            @id @default(uuid()) @db.Uuid
+  nombre           String
+  correo           String            @unique
+  passwordHash     String            @map("password_hash")
+  estado           EstadoUsuario     @default(ACTIVO)
+  rolId            String            @map("rol_id") @db.Uuid
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+  rol              Rol               @relation(fields: [rolId], references: [id], onDelete: Restrict)
+  fincas           UsuarioFinca[]
+  refreshTokens    RefreshToken[]
+  vacunosCreados   Vacuno[]
+  lotesCreados     LoteOviparo[]
+  alimentosCreados Alimento[]
+  entradasAlimento EntradaAlimento[]
+  consumosVacunos  ConsumoVacuno[]
+  consumosLotes    ConsumoLote[]
+
+  @@index([rolId])
+  @@index([estado])
+  @@map("usuarios")
+}
+
+model UsuarioFinca {
+  usuarioId String   @map("usuario_id") @db.Uuid
+  fincaId   String   @map("finca_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  finca     Finca    @relation(fields: [fincaId], references: [id], onDelete: Cascade)
+
+  @@id([usuarioId, fincaId])
+  @@index([fincaId])
+  @@map("usuarios_fincas")
+}
+
+/// Sesiones. `familiaId` agrupa las rotaciones de un mismo inicio de sesión.
+model RefreshToken {
+  id            String    @id @default(uuid()) @db.Uuid
+  usuarioId     String    @map("usuario_id") @db.Uuid
+  familiaId     String    @map("familia_id") @db.Uuid
+  tokenHash     String    @unique @map("token_hash")
+  expiresAt     DateTime  @map("expires_at")
+  reemplazadoAt DateTime? @map("reemplazado_at")
+  revokedAt     DateTime? @map("revoked_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  usuario       Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@index([familiaId])
+  @@map("refresh_tokens")
+}
+
+enum Sexo {
+  MACHO
+  HEMBRA
+}
+
+enum PropositoVacuno {
+  ALIMENTACION
+  PRODUCCION_LECHERA
+  ENGORDE
+}
+
+enum PropositoLote {
+  PRODUCCION
+  ALIMENTACION
+}
+
+/// Baja lógica: los registros nunca se borran porque la alimentación los referencia.
+enum EstadoRegistro {
+  ACTIVO
+  INACTIVO
+}
+
+/// Único por finca sin distinguir mayúsculas: índice `(finca_id, lower(nombre))` añadido a mano en la migración.
+model Vacuno {
+  id            String          @id @default(uuid()) @db.Uuid
+  fincaId       String          @map("finca_id") @db.Uuid
+  nombre        String
+  sexo          Sexo
+  raza          String
+  edadMeses     Int             @map("edad_meses")
+  peso          Decimal         @db.Decimal(7, 2)
+  fechaLlegada  DateTime        @map("fecha_llegada") @db.Date
+  proposito     PropositoVacuno
+  estado        EstadoRegistro  @default(ACTIVO)
+  motivoBaja    String?         @map("motivo_baja")
+  observaciones String?
+  creadoPorId   String          @map("creado_por_id") @db.Uuid
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+  finca         Finca           @relation(fields: [fincaId], references: [id], onDelete: Restrict)
+  creadoPor     Usuario         @relation(fields: [creadoPorId], references: [id], onDelete: Restrict)
+
+  consumos ConsumoVacuno[]
+
+  @@index([fincaId])
+  @@index([estado])
+  @@map("vacunos")
+}
+
+/// Único por finca sin distinguir mayúsculas: índice `(finca_id, lower(nombre))` añadido a mano en la migración.
+model LoteOviparo {
+  id             String         @id @default(uuid()) @db.Uuid
+  fincaId        String         @map("finca_id") @db.Uuid
+  nombre         String
+  tipoAve        String?        @map("tipo_ave")
+  edadMinSemanas Int            @map("edad_min_semanas")
+  edadMaxSemanas Int            @map("edad_max_semanas")
+  cantidad       Int
+  proposito      PropositoLote
+  fechaIngreso   DateTime?      @map("fecha_ingreso") @db.Date
+  estado         EstadoRegistro @default(ACTIVO)
+  motivoBaja     String?        @map("motivo_baja")
+  observaciones  String?
+  creadoPorId    String         @map("creado_por_id") @db.Uuid
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+  finca          Finca          @relation(fields: [fincaId], references: [id], onDelete: Restrict)
+  creadoPor      Usuario        @relation(fields: [creadoPorId], references: [id], onDelete: Restrict)
+
+  consumos ConsumoLote[]
+
+  @@index([fincaId])
+  @@index([estado])
+  @@map("lotes_oviparos")
+}
+
+enum TipoAlimento {
+  CONCENTRADO
+  FORRAJE
+  GRANO
+  SUPLEMENTO
+  SAL_MINERAL
+  OTRO
+}
+
+enum Jornada {
+  MANANA
+  TARDE
+  NOCHE
+}
+
+/// Cantidades en gramos enteros. El stock puede quedar negativo: no se rechaza un registro de campo.
+/// Único por finca sin distinguir mayúsculas: índice `(finca_id, lower(nombre))` añadido a mano en la migración.
+model Alimento {
+  id                String            @id @default(uuid()) @db.Uuid
+  fincaId           String            @map("finca_id") @db.Uuid
+  nombre            String
+  tipo              TipoAlimento
+  stockGramos       Int               @default(0) @map("stock_gramos")
+  stockMinimoGramos Int               @default(0) @map("stock_minimo_gramos")
+  estado            EstadoRegistro    @default(ACTIVO)
+  motivoBaja        String?           @map("motivo_baja")
+  observaciones     String?
+  creadoPorId       String            @map("creado_por_id") @db.Uuid
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+  finca             Finca             @relation(fields: [fincaId], references: [id], onDelete: Restrict)
+  creadoPor         Usuario           @relation(fields: [creadoPorId], references: [id], onDelete: Restrict)
+  entradas          EntradaAlimento[]
+  consumosVacunos   ConsumoVacuno[]
+  consumosLotes     ConsumoLote[]
+
+  @@index([fincaId])
+  @@index([estado])
+  @@map("alimentos")
+}
+
+model EntradaAlimento {
+  id              String   @id @default(uuid()) @db.Uuid
+  alimentoId      String   @map("alimento_id") @db.Uuid
+  cantidadGramos  Int      @map("cantidad_gramos")
+  fecha           DateTime @db.Date
+  nota            String?
+  registradoPorId String   @map("registrado_por_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at")
+  alimento        Alimento @relation(fields: [alimentoId], references: [id], onDelete: Restrict)
+  registradoPor   Usuario  @relation(fields: [registradoPorId], references: [id], onDelete: Restrict)
+
+  @@index([alimentoId, fecha])
+  @@map("entradas_alimento")
+}
+
+model ConsumoVacuno {
+  id              String   @id @default(uuid()) @db.Uuid
+  vacunoId        String   @map("vacuno_id") @db.Uuid
+  alimentoId      String   @map("alimento_id") @db.Uuid
+  cantidadGramos  Int      @map("cantidad_gramos")
+  jornada         Jornada
+  fecha           DateTime @db.Date
+  observaciones   String?
+  registradoPorId String   @map("registrado_por_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  vacuno          Vacuno   @relation(fields: [vacunoId], references: [id], onDelete: Restrict)
+  alimento        Alimento @relation(fields: [alimentoId], references: [id], onDelete: Restrict)
+  registradoPor   Usuario  @relation(fields: [registradoPorId], references: [id], onDelete: Restrict)
+
+  @@unique([vacunoId, alimentoId, fecha, jornada])
+  @@index([alimentoId, fecha])
+  @@index([fecha])
+  @@map("consumos_vacunos")
+}
+
+model ConsumoLote {
+  id              String      @id @default(uuid()) @db.Uuid
+  loteId          String      @map("lote_id") @db.Uuid
+  alimentoId      String      @map("alimento_id") @db.Uuid
+  cantidadGramos  Int         @map("cantidad_gramos")
+  jornada         Jornada
+  fecha           DateTime    @db.Date
+  observaciones   String?
+  registradoPorId String      @map("registrado_por_id") @db.Uuid
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+  lote            LoteOviparo @relation(fields: [loteId], references: [id], onDelete: Restrict)
+  alimento        Alimento    @relation(fields: [alimentoId], references: [id], onDelete: Restrict)
+  registradoPor   Usuario     @relation(fields: [registradoPorId], references: [id], onDelete: Restrict)
+
+  @@unique([loteId, alimentoId, fecha, jornada])
+  @@index([alimentoId, fecha])
+  @@index([fecha])
+  @@map("consumos_lotes")
+}

@@ -1,0 +1,174 @@
+import { Component, computed, inject } from '@angular/core';
+import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Auth } from '../core/auth';
+import { FincaActiva } from '../core/finca-activa';
+import { etiquetaRol, Permiso } from '../core/modelos';
+
+interface ItemMenu {
+  ruta: string;
+  etiqueta: string;
+  icono: string;
+  exacto: boolean;
+  permiso?: Permiso;
+}
+
+const MENU: ItemMenu[] = [
+  { ruta: '/', etiqueta: 'Inicio', exacto: true, icono: 'M3 11l9-8 9 8M5 10v10h14V10' },
+  {
+    ruta: '/vacunos',
+    etiqueta: 'Vacunos',
+    exacto: false,
+    permiso: 'animales:consultar',
+    icono: 'M4 8l3-4 3 3h4l3-3 3 4-2 3v5a4 4 0 01-4 4H10a4 4 0 01-4-4v-5zM9 14h.01M15 14h.01',
+  },
+  {
+    ruta: '/lotes',
+    etiqueta: 'Lotes',
+    exacto: false,
+    permiso: 'animales:consultar',
+    icono: 'M12 3c-4 0-6 3-6 6 0 2 .8 3.500 2 4.500V17a4 4 0 008 0v-3.500c1.200-1 2-2.500 2-4.500 0-3-2-6-6-6zM9 21h6M12 8h.01',
+  },
+  {
+    ruta: '/alimentos',
+    etiqueta: 'Inventario',
+    exacto: false,
+    permiso: 'alimentos:consultar',
+    icono: 'M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8M12 13v8',
+  },
+  {
+    ruta: '/consumos',
+    etiqueta: 'Alimentación',
+    exacto: false,
+    permiso: 'consumos:registrar',
+    icono: 'M4 14h16a8 8 0 01-16 0zM12 14V6M9 9l3-3 3 3',
+  },
+  {
+    ruta: '/usuarios',
+    etiqueta: 'Usuarios',
+    exacto: false,
+    permiso: 'usuarios:gestionar',
+    icono: 'M16 20v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 10a4 4 0 100-8 4 4 0 000 8M22 20v-2a4 4 0 00-3-3.900M16 2.100a4 4 0 010 7.800',
+  },
+  {
+    ruta: '/fincas',
+    etiqueta: 'Fincas',
+    exacto: false,
+    permiso: 'fincas:gestionar',
+    icono: 'M12 21s-7-6.300-7-12a7 7 0 0114 0c0 5.700-7 12-7 12zM12 11.500a2.500 2.500 0 100-5 2.500 2.500 0 000 5',
+  },
+];
+
+@Component({
+  selector: 'app-shell',
+  imports: [RouterOutlet, RouterLink, RouterLinkActive],
+  template: `
+    <header class="barra">
+      <a routerLink="/" class="marca">
+        <img src="icono.svg" alt="" width="32" height="32" />
+        CuidAgro
+      </a>
+      @if (fincas().length > 1) {
+        <select class="selector-finca" aria-label="Finca activa" (change)="elegirFinca($any($event.target).value)">
+          @for (finca of fincas(); track finca.id) {
+            <option [value]="finca.id" [selected]="finca.id === fincaId()">{{ finca.nombre }}</option>
+          }
+        </select>
+      }
+      @if (usuario(); as u) {
+        <div class="sesion">
+          <div class="quien">
+            <strong>{{ u.nombre }}</strong>
+            <span>{{ rol() }}</span>
+          </div>
+          <button type="button" class="btn salir" (click)="salir()">Salir</button>
+        </div>
+      }
+    </header>
+
+    <div class="cuerpo">
+      <nav class="menu" aria-label="Principal">
+        @for (item of menu(); track item.ruta) {
+          <a
+            [routerLink]="item.ruta"
+            routerLinkActive="activo"
+            ariaCurrentWhenActive="page"
+            [routerLinkActiveOptions]="{ exact: item.exacto }"
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path [attr.d]="item.icono" />
+            </svg>
+            {{ item.etiqueta }}
+          </a>
+        }
+      </nav>
+      <main class="contenido"><router-outlet /></main>
+    </div>
+  `,
+  styles: `
+    .barra {
+      position: sticky; top: 0; z-index: 10;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 8px 16px; background: var(--verde-700); color: #fff;
+    }
+    .marca { display: flex; align-items: center; gap: 10px; color: #fff; font-size: 1.2rem; font-weight: 700; text-decoration: none; }
+    .marca img { border-radius: 8px; outline: 1px solid rgb(255 255 255 / 35%); }
+    .sesion { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .selector-finca {
+      flex: 1 1 0; min-width: 0; max-width: 260px; min-height: 44px; padding: 0 8px;
+      border: 1px solid rgb(255 255 255 / 50%); border-radius: 10px;
+      background: var(--verde-900); color: #fff; font: inherit; font-weight: 600;
+    }
+    .quien { display: none; text-align: right; line-height: 1.2; }
+    .quien span { display: block; font-size: 0.85rem; opacity: 0.85; }
+    .salir { background: transparent; color: #fff; border-color: rgb(255 255 255 / 50%); min-height: 44px; }
+    .salir:hover:not(:disabled) { background: var(--verde-900); }
+    .cuerpo { display: block; }
+    .contenido { padding: 16px 16px calc(96px + env(safe-area-inset-bottom)); max-width: 1100px; margin: 0 auto; }
+    .menu {
+      position: fixed; inset: auto 0 0 0; z-index: 10;
+      display: flex; overflow-x: auto; background: var(--blanco); border-top: 1px solid var(--borde);
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    .menu a {
+      flex: 1 0 72px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+      min-height: 60px; color: var(--texto-suave); font-size: 0.75rem; font-weight: 600; text-decoration: none;
+    }
+    .menu a.activo { color: var(--verde-700); background: var(--verde-100); }
+    @media (min-width: 720px) {
+      .quien { display: block; }
+      .cuerpo { display: grid; grid-template-columns: 220px minmax(0, 1fr); min-height: calc(100vh - 62px); }
+      .contenido { padding: 24px; width: 100%; }
+      .menu {
+        position: static; flex-direction: column; gap: 4px; padding: 16px 12px;
+        border-top: 0; border-right: 1px solid var(--borde);
+      }
+      .menu a { flex: none; flex-direction: row; justify-content: flex-start; gap: 12px; min-height: 48px; padding: 0 12px; border-radius: 10px; font-size: 1rem; }
+    }
+  `,
+})
+export class Shell {
+  private readonly auth = inject(Auth);
+  private readonly router = inject(Router);
+  private readonly fincaActiva = inject(FincaActiva);
+
+  protected readonly fincas = this.fincaActiva.fincas;
+  protected readonly fincaId = this.fincaActiva.id;
+
+  protected readonly usuario = this.auth.usuario;
+  protected readonly rol = computed(() => {
+    const u = this.usuario();
+    return u ? etiquetaRol(u.rol) : '';
+  });
+  protected readonly menu = computed(() => {
+    this.usuario();
+    return MENU.filter((i) => !i.permiso || this.auth.tienePermiso(i.permiso));
+  });
+
+  protected elegirFinca(id: string): void {
+    this.fincaActiva.seleccionar(id);
+  }
+
+  protected salir(): void {
+    this.auth.logout().subscribe(() => void this.router.navigate(['/login']));
+  }
+}
