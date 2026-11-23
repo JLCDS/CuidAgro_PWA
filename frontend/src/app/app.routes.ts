@@ -50,6 +50,18 @@ export const routes: Routes = [
         loadComponent: () => import('./paginas/consumos').then((m) => m.Consumos),
       },
       {
+        path: 'novedades',
+        title: 'Novedades · CuidAgro',
+        canActivate: [permisoGuard('novedades:registrar')],
+        loadComponent: () => import('./paginas/novedades').then((m) => m.Novedades),
+      },
+      {
+        path: 'salud',
+        title: 'Salud · CuidAgro',
+        canActivate: [permisoGuard('salud:consultar')],
+        loadComponent: () => import('./paginas/salud').then((m) => m.Salud),
+      },
+      {
         path: 'fincas',
         title: 'Fincas · CuidAgro',
         canActivate: [permisoGuard('fincas:gestionar')],

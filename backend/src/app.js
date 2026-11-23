@@ -7,6 +7,8 @@ import { errorHandler, notFoundApi } from './middleware/errorHandler.js';
 import { authRouter } from './modules/auth/auth.routes.js';
 import { alimentosRouter } from './modules/alimentos/alimentos.routes.js';
 import { consumosRouter } from './modules/consumos/consumos.routes.js';
+import { novedadesRouter } from './modules/novedades/novedades.routes.js';
+import { saludRouter } from './modules/salud/salud.routes.js';
 import { fincasRouter } from './modules/fincas/fincas.routes.js';
 import { lotesRouter } from './modules/lotes/lotes.routes.js';
 import { usuariosRouter } from './modules/usuarios/usuarios.routes.js';
@@ -33,6 +35,8 @@ export function createApp({ loginMaxIntentos = env.LOGIN_MAX_INTENTOS } = {}) {
   app.use('/api/lotes', lotesRouter);
   app.use('/api/alimentos', alimentosRouter);
   app.use('/api/consumos', consumosRouter);
+  app.use('/api/novedades', novedadesRouter);
+  app.use('/api/salud', saludRouter);
   app.use('/api', notFoundApi);
 
   app.use(errorHandler);

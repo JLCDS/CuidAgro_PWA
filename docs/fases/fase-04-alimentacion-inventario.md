@@ -1,6 +1,6 @@
 # Fase 4. Alimentación e inventario
 
-**Estado:** en construcción (2026-11-18).
+**Estado:** terminada (2026-11-23), en revisión del equipo.
 **Historias:** HU008 a HU011. Cubre las HU oficiales del Excel "Registrar alimento", "Registrar alimento consumido vacuno" y "Registrar alimento consumido ovíparo".
 
 | HU | Alcance supuesto |
@@ -81,10 +81,60 @@ Errores como en la Fase 3: 400 `VALIDACION`, 401, 403, 404, 409 `DUPLICADO`.
 - `/consumos` (guard `consumos:registrar`): pensada para el celular del ayudante. Pestañas Vacunos / Lotes. Formulario rápido: animal o lote (solo activos), alimento (solo activos, mostrando stock), cantidad en gramos con atajo para escribir kg, jornada preseleccionada según la hora en Bogotá (antes de 12 mañana, antes de 18 tarde, si no noche), fecha hoy por defecto. Al guardar, aviso visible si el alimento quedó en stock bajo o negativo. Debajo, lista de consumos filtrable (por defecto hoy) con editar/borrar según la regla de permisos.
 - Menú: "Inventario" y "Alimentación" según permiso. 375 px sin scroll horizontal, estado en `signal`, columnas de acción solo si hay acciones (lección de la Fase 3).
 
+## Qué se construyó
+
+| Capa | Archivos |
+|---|---|
+| Modelo | Enums `TipoAlimento` y `Jornada`; modelos `Alimento`, `EntradaAlimento`, `ConsumoVacuno` y `ConsumoLote`; migración `20261118100000_alimentacion_inventario` |
+| Backend | `modules/alimentos/` y `modules/consumos/`; serializadores `aAlimento`, `aEntrada` y `aConsumo`; permisos nuevos en `lib/roles.js` |
+| Frontend | `core/alimentos-api.ts` y `consumos-api.ts`; en `paginas/`: `alimentos.ts`, `alimento-form.ts`, `entrada-form.ts`, `movimientos-dialogo.ts`, `consumos.ts`, `consumo-panel.ts` y `consumo-form.ts` |
+
 ## Decisiones y motivos
 
-Se completa al cerrar la fase.
+| Decisión | Motivo |
+|---|---|
+| Cantidades en gramos enteros; la interfaz muestra kg | Evita errores de redondeo con decimales. El Excel pide gramos. |
+| El consumo descuenta inventario y permite stock negativo con alerta | Decisión del usuario (2026-11-18): no se rechaza un registro de campo por falta de stock. |
+| El stock solo cambia con entradas y consumos; nunca se edita directamente | Así el stock siempre coincide con la suma de movimientos. |
+| La "cantidad" del Excel es `stockInicialGramos`, que crea una entrada "Stock inicial" | El movimiento inicial queda trazado. |
+| Jornada `MANANA`, `TARDE` y `NOCHE`, también en lotes | Decisión del usuario (2026-11-18). En lotes, el Excel no la pide pero tampoco la prohíbe. |
+| Un consumo es único por animal, alimento, fecha y jornada (409) | Evita registrar dos veces lo mismo desde el celular. |
+| El ayudante edita o borra solo sus consumos del día | Puede corregir errores de digitación sin alterar el histórico. |
+| Bloqueo `FOR UPDATE` del alimento al mover el stock | Evita perder una actualización cuando hay dos registros simultáneos. |
+| El formulario conserva el alimento, la jornada y la fecha después de guardar | Lo típico es registrar varios animales seguidos. |
 
 ## Cómo verificar
 
-Se completa al cerrar la fase.
+```bash
+npm test                                     # 285 pruebas de backend
+npm test --prefix frontend -- --watch=false  # 8 pruebas de frontend
+npm run build
+```
+
+Resultado al cerrar la fase (2026-11-23): 285/285 y 8/8, con build correcto (verificado por el coordinador).
+
+QA en un entorno aislado (base `cuidagro_qa`, API en :3190, Angular en :4290, scripts fuera del repo):
+- **API:** 182 de 182 comprobaciones aprobadas.
+  - Permisos: la matriz completa y la regla del ayudante (solo sus consumos de hoy en Bogotá).
+  - Alcance por finca.
+  - Validaciones: rangos, fechas futuras, animales y alimentos inactivos, finca distinta.
+  - Duplicados: 409 sin alterar el stock.
+  - Cálculo de stock: diferencia al editar, cambio de alimento, devolución al borrar, stock negativo, `bajoStock`, y stock igual a la suma de movimientos.
+  - Orden en español y filtros.
+- **E2E con Playwright:** Chromium a 1280 y 375 px, con administrador, veterinario y ayudante.
+  - Inventario: entradas, movimientos, baja y reactivación.
+  - Consumos de vacunos y lotes: atajo en kg, jornada preseleccionada y avisos de stock bajo y negativo.
+  - Permisos en pantalla.
+  - Sin scroll horizontal, sin respuestas 5xx y sin errores de consola inesperados.
+
+**No probado:** celular físico, concurrencia real (solo se revisó el código del bloqueo) y un reloj con otra fecha.
+
+## Particularidades técnicas
+
+- `GET /api/alimentos?bajoStock=true` filtra en memoria. Sirve para inventarios por finca, que son pequeños.
+- El índice único `(finca_id, lower(nombre))` de alimentos está escrito a mano en la migración, igual que en la Fase 3.
+
+## Pendientes para fases siguientes
+
+- Fase 7: los reportes de consumo por día y mes, por animal o lote, salen de `consumos_vacunos` y `consumos_lotes`.
+- Fase 8: registrar consumos sin conexión.

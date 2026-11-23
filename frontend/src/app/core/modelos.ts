@@ -9,7 +9,11 @@ export type Permiso =
   | 'alimentos:consultar'
   | 'alimentos:gestionar'
   | 'consumos:registrar'
-  | 'consumos:gestionar';
+  | 'consumos:gestionar'
+  | 'novedades:registrar'
+  | 'novedades:gestionar'
+  | 'salud:consultar'
+  | 'salud:gestionar';
 
 export const ROLES: { valor: Rol; etiqueta: string }[] = [
   { valor: 'ADMINISTRADOR', etiqueta: 'Administrador' },

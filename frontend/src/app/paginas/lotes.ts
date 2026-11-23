@@ -8,11 +8,12 @@ import { mensajeDeError } from '../core/errores';
 import { FincaActiva } from '../core/finca-activa';
 import { LotesApi } from '../core/lotes-api';
 import { etiquetaDe, FiltroEstado, formatearFecha, Lote, PROPOSITOS_LOTE, PropositoLote } from '../core/modelos';
+import { HistorialDialogo } from './historial-dialogo';
 import { LoteForm } from './lote-form';
 
 @Component({
   selector: 'app-lotes',
-  imports: [RouterLink, LoteForm, BajaDialogo],
+  imports: [RouterLink, LoteForm, BajaDialogo, HistorialDialogo],
   template: `
     <div class="cabecera-pagina">
       <h1>Lotes de aves</h1>
@@ -65,7 +66,7 @@ import { LoteForm } from './lote-form';
               <th>Edad</th>
               <th>Propósito</th>
               <th>Estado</th>
-              @if (puedeGestionar()) {
+              @if (hayAcciones()) {
                 <th><span class="sr-only">Acciones</span></th>
               }
             </tr>
@@ -90,14 +91,19 @@ import { LoteForm } from './lote-form';
                     <br /><span class="suave">Motivo: {{ l.motivoBaja }}</span>
                   }
                 </td>
-                @if (puedeGestionar()) {
+                @if (hayAcciones()) {
                   <td>
                     <div class="acciones">
+                      @if (puedeHistorial()) {
+                        <button type="button" class="btn" (click)="historialDe.set(l)">Historial</button>
+                      }
+                      @if (puedeGestionar()) {
                       <button type="button" class="btn" (click)="abrir(l)">Editar</button>
                       @if (l.estado === 'ACTIVO') {
                         <button type="button" class="btn btn-peligro" (click)="pedirBaja(l)">Dar de baja</button>
                       } @else {
                         <button type="button" class="btn" (click)="reactivar(l)">Reactivar</button>
+                      }
                       }
                     </div>
                   </td>
@@ -112,6 +118,12 @@ import { LoteForm } from './lote-form';
     @if (formularioAbierto()) {
       @if (fincaId(); as id) {
         <app-lote-form [lote]="editando()" [fincaId]="id" (guardado)="alGuardar()" (cerrado)="formularioAbierto.set(false)" />
+      }
+    }
+
+    @if (historialDe(); as h) {
+      @if (fincaId(); as id) {
+        <app-historial-dialogo tipo="lote" [animalId]="h.id" [nombre]="h.nombre" [fincaId]="id" (cerrado)="historialDe.set(null)" />
       }
     }
 
@@ -139,6 +151,12 @@ export class Lotes {
     this.auth.usuario();
     return this.auth.tienePermiso('animales:gestionar');
   });
+  protected readonly puedeHistorial = computed(() => {
+    this.auth.usuario();
+    return this.auth.tienePermiso('salud:consultar');
+  });
+  protected readonly hayAcciones = computed(() => this.puedeGestionar() || this.puedeHistorial());
+  protected readonly historialDe = signal<{ id: string; nombre: string } | null>(null);
   protected readonly puedeCrearFincas = computed(() => {
     this.auth.usuario();
     return this.auth.tienePermiso('fincas:gestionar');

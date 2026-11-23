@@ -17,11 +17,12 @@ import {
   Vacuno,
 } from '../core/modelos';
 import { VacunosApi } from '../core/vacunos-api';
+import { HistorialDialogo } from './historial-dialogo';
 import { VacunoForm } from './vacuno-form';
 
 @Component({
   selector: 'app-vacunos',
-  imports: [RouterLink, VacunoForm, BajaDialogo],
+  imports: [RouterLink, VacunoForm, BajaDialogo, HistorialDialogo],
   template: `
     <div class="cabecera-pagina">
       <h1>Vacunos</h1>
@@ -75,7 +76,7 @@ import { VacunoForm } from './vacuno-form';
               <th>Peso</th>
               <th>Propósito</th>
               <th>Estado</th>
-              @if (puedeGestionar()) {
+              @if (hayAcciones()) {
                 <th><span class="sr-only">Acciones</span></th>
               }
             </tr>
@@ -99,14 +100,19 @@ import { VacunoForm } from './vacuno-form';
                     <br /><span class="suave">Motivo: {{ v.motivoBaja }}</span>
                   }
                 </td>
-                @if (puedeGestionar()) {
+                @if (hayAcciones()) {
                   <td>
                     <div class="acciones">
+                      @if (puedeHistorial()) {
+                        <button type="button" class="btn" (click)="historialDe.set(v)">Historial</button>
+                      }
+                      @if (puedeGestionar()) {
                       <button type="button" class="btn" (click)="abrir(v)">Editar</button>
                       @if (v.estado === 'ACTIVO') {
                         <button type="button" class="btn btn-peligro" (click)="pedirBaja(v)">Dar de baja</button>
                       } @else {
                         <button type="button" class="btn" (click)="reactivar(v)">Reactivar</button>
+                      }
                       }
                     </div>
                   </td>
@@ -121,6 +127,12 @@ import { VacunoForm } from './vacuno-form';
     @if (formularioAbierto()) {
       @if (fincaId(); as id) {
         <app-vacuno-form [vacuno]="editando()" [fincaId]="id" (guardado)="alGuardar()" (cerrado)="formularioAbierto.set(false)" />
+      }
+    }
+
+    @if (historialDe(); as h) {
+      @if (fincaId(); as id) {
+        <app-historial-dialogo tipo="vacuno" [animalId]="h.id" [nombre]="h.nombre" [fincaId]="id" (cerrado)="historialDe.set(null)" />
       }
     }
 
@@ -151,6 +163,12 @@ export class Vacunos {
     this.auth.usuario();
     return this.auth.tienePermiso('animales:gestionar');
   });
+  protected readonly puedeHistorial = computed(() => {
+    this.auth.usuario();
+    return this.auth.tienePermiso('salud:consultar');
+  });
+  protected readonly hayAcciones = computed(() => this.puedeGestionar() || this.puedeHistorial());
+  protected readonly historialDe = signal<{ id: string; nombre: string } | null>(null);
   protected readonly puedeCrearFincas = computed(() => {
     this.auth.usuario();
     return this.auth.tienePermiso('fincas:gestionar');

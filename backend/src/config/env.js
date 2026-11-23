@@ -1,5 +1,10 @@
 import 'dotenv/config';
+import { mkdirSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
+
+const DIRECTORIO_BACKEND = fileURLToPath(new URL('../../', import.meta.url));
 
 const esquema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -11,6 +16,12 @@ const esquema = z.object({
   CORS_ORIGIN: z.string().default(''),
   TRUST_PROXY: z.coerce.number().int().min(0).default(0),
   LOGIN_MAX_INTENTOS: z.coerce.number().int().positive().default(10),
+  // Fotos de novedades. Una ruta relativa se resuelve desde el directorio backend/.
+  UPLOADS_DIR: z
+    .string()
+    .min(1)
+    .default('uploads')
+    .transform((ruta) => path.resolve(DIRECTORIO_BACKEND, ruta)),
 });
 
 const resultado = esquema.safeParse(process.env);
@@ -20,3 +31,4 @@ if (!resultado.success) {
 }
 
 export const env = resultado.data;
+mkdirSync(env.UPLOADS_DIR, { recursive: true });

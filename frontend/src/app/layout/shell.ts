@@ -1,5 +1,7 @@
-import { Component, computed, inject } from '@angular/core';
-import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Component, computed, inject, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { filter, map } from 'rxjs';
 import { Auth } from '../core/auth';
 import { FincaActiva } from '../core/finca-activa';
 import { etiquetaRol, Permiso } from '../core/modelos';
@@ -41,6 +43,20 @@ const MENU: ItemMenu[] = [
     exacto: false,
     permiso: 'consumos:registrar',
     icono: 'M4 14h16a8 8 0 01-16 0zM12 14V6M9 9l3-3 3 3',
+  },
+  {
+    ruta: '/novedades',
+    etiqueta: 'Novedades',
+    exacto: false,
+    permiso: 'novedades:registrar',
+    icono: 'M12 9v4M12 17h.01M10.300 3.900L1.800 18a2 2 0 001.700 3h17a2 2 0 001.700-3L13.700 3.900a2 2 0 00-3.400 0z',
+  },
+  {
+    ruta: '/salud',
+    etiqueta: 'Salud',
+    exacto: false,
+    permiso: 'salud:consultar',
+    icono: 'M12 21s-8-5-8-11a4.500 4.500 0 018-2.800A4.500 4.500 0 0120 10c0 6-8 11-8 11zM12 8v6M9 11h6',
   },
   {
     ruta: '/usuarios',
@@ -86,9 +102,11 @@ const MENU: ItemMenu[] = [
     </header>
 
     <div class="cuerpo">
-      <nav class="menu" aria-label="Principal">
-        @for (item of menu(); track item.ruta) {
+      <nav class="menu" [class.abierto]="masAbierto()" aria-label="Principal">
+        @for (item of menu(); track item.ruta; let i = $index) {
           <a
+            [class.extra]="conMas() && i >= VISIBLES_MOVIL"
+            (click)="masAbierto.set(false)"
             [routerLink]="item.ruta"
             routerLinkActive="activo"
             ariaCurrentWhenActive="page"
@@ -99,6 +117,15 @@ const MENU: ItemMenu[] = [
             </svg>
             {{ item.etiqueta }}
           </a>
+        }
+        @if (conMas()) {
+          <button type="button" class="mas" [class.activo]="extraActivo() && !masAbierto()"
+            [attr.aria-expanded]="masAbierto()" (click)="masAbierto.set(!masAbierto())">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+              <path [attr.d]="masAbierto() ? 'M6 6l12 12M18 6L6 18' : 'M5 12h.01M12 12h.01M19 12h.01'" />
+            </svg>
+            {{ masAbierto() ? 'Cerrar' : 'Más' }}
+          </button>
         }
       </nav>
       <main class="contenido"><router-outlet /></main>
@@ -129,11 +156,14 @@ const MENU: ItemMenu[] = [
       display: flex; overflow-x: auto; background: var(--blanco); border-top: 1px solid var(--borde);
       padding-bottom: env(safe-area-inset-bottom);
     }
-    .menu a {
-      flex: 1 0 72px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    .menu a, .menu .mas {
+      flex: 1 0 64px; border: 0; background: none; font-family: inherit; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
       min-height: 60px; color: var(--texto-suave); font-size: 0.75rem; font-weight: 600; text-decoration: none;
     }
-    .menu a.activo { color: var(--verde-700); background: var(--verde-100); }
+    .menu a.activo, .menu .mas.activo { color: var(--verde-700); background: var(--verde-100); }
+    .menu a.extra { display: none; }
+    .menu.abierto { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); box-shadow: 0 -8px 24px rgb(0 0 0 / 12%); }
+    .menu.abierto a.extra { display: flex; }
     @media (min-width: 720px) {
       .quien { display: block; }
       .cuerpo { display: grid; grid-template-columns: 220px minmax(0, 1fr); min-height: calc(100vh - 62px); }
@@ -142,6 +172,8 @@ const MENU: ItemMenu[] = [
         position: static; flex-direction: column; gap: 4px; padding: 16px 12px;
         border-top: 0; border-right: 1px solid var(--borde);
       }
+      .menu .mas { display: none; }
+      .menu a.extra { display: flex; }
       .menu a { flex: none; flex-direction: row; justify-content: flex-start; gap: 12px; min-height: 48px; padding: 0 12px; border-radius: 10px; font-size: 1rem; }
     }
   `,
@@ -162,6 +194,24 @@ export class Shell {
   protected readonly menu = computed(() => {
     this.usuario();
     return MENU.filter((i) => !i.permiso || this.auth.tienePermiso(i.permiso));
+  });
+
+  /** En el celular caben 5 botones: si hay más opciones, se muestran 4 y un botón "Más". */
+  protected readonly VISIBLES_MOVIL = 4;
+  protected readonly conMas = computed(() => this.menu().length > this.VISIBLES_MOVIL + 1);
+  protected readonly masAbierto = signal(false);
+  private readonly url = toSignal(
+    this.router.events.pipe(
+      filter((e) => e instanceof NavigationEnd),
+      map(() => this.router.url),
+    ),
+    { initialValue: this.router.url },
+  );
+  protected readonly extraActivo = computed(() => {
+    const url = this.url().split(/[?#]/)[0];
+    return this.menu()
+      .slice(this.VISIBLES_MOVIL)
+      .some((i) => (i.exacto ? url === i.ruta : url === i.ruta || url.startsWith(i.ruta + '/')));
   });
 
   protected elegirFinca(id: string): void {

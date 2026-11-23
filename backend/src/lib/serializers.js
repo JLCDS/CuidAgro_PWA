@@ -128,3 +128,94 @@ export function aConsumo(c, relacion) {
     updatedAt: c.updatedAt.toISOString(),
   };
 }
+
+const sujeto = (r) => (r ? { id: r.id, nombre: r.nombre } : null);
+
+export const includeNovedad = {
+  finca: { select: { id: true, nombre: true } },
+  vacuno: { select: { id: true, nombre: true } },
+  lote: { select: { id: true, nombre: true } },
+  registradoPor: { select: { id: true, nombre: true } },
+  _count: { select: { comentarios: true } },
+};
+
+export function aComentario(c) {
+  return {
+    id: c.id,
+    novedadId: c.novedadId,
+    autorId: c.autorId,
+    autor: c.autor ? { id: c.autor.id, nombre: c.autor.nombre } : undefined,
+    texto: c.texto,
+    createdAt: c.createdAt.toISOString(),
+  };
+}
+
+const numeroONulo = (d) => (d === null || d === undefined ? null : Number(d));
+
+/** La novedad nunca expone `fotoArchivo`; la foto se pide por `fotoUrl`. */
+export function aNovedad(n) {
+  const base = {
+    id: n.id,
+    fincaId: n.fincaId,
+    vacunoId: n.vacunoId,
+    loteId: n.loteId,
+    tipo: n.tipo,
+    prioridad: n.prioridad,
+    descripcion: n.descripcion,
+    fechaHora: n.fechaHora.toISOString(),
+    latitud: numeroONulo(n.latitud),
+    longitud: numeroONulo(n.longitud),
+    precisionMetros: n.precisionMetros,
+    fotoMime: n.fotoMime,
+    fotoBytes: n.fotoBytes,
+    tieneFoto: Boolean(n.fotoArchivo),
+    fotoUrl: n.fotoArchivo ? `/api/novedades/${n.id}/foto` : null,
+    estado: n.estado,
+    cerradaEn: n.cerradaEn ? n.cerradaEn.toISOString() : null,
+    totalComentarios: n._count.comentarios,
+    vacuno: sujeto(n.vacuno),
+    lote: sujeto(n.lote),
+    finca: n.finca,
+    registradoPorId: n.registradoPorId,
+    registradoPor: n.registradoPor,
+    createdAt: n.createdAt.toISOString(),
+    updatedAt: n.updatedAt.toISOString(),
+  };
+  return n.comentarios ? { ...base, comentarios: n.comentarios.map(aComentario) } : base;
+}
+
+export const includeCaso = {
+  finca: { select: { id: true, nombre: true } },
+  vacuno: { select: { id: true, nombre: true } },
+  lote: { select: { id: true, nombre: true } },
+  novedad: { select: { id: true, tipo: true, fechaHora: true } },
+  registradoPor: { select: { id: true, nombre: true } },
+};
+
+export const ESTADOS_CASO_ACTIVOS = ['EN_OBSERVACION', 'EN_TRATAMIENTO'];
+
+export function aCasoSalud(c) {
+  return {
+    id: c.id,
+    fincaId: c.fincaId,
+    vacunoId: c.vacunoId,
+    loteId: c.loteId,
+    novedadId: c.novedadId,
+    diagnostico: c.diagnostico,
+    sintomas: c.sintomas,
+    estado: c.estado,
+    activo: ESTADOS_CASO_ACTIVOS.includes(c.estado),
+    fechaInicio: aFechaISO(c.fechaInicio),
+    fechaFin: aFechaISO(c.fechaFin),
+    animalesAfectados: c.animalesAfectados,
+    observaciones: c.observaciones,
+    vacuno: sujeto(c.vacuno),
+    lote: sujeto(c.lote),
+    finca: c.finca,
+    novedad: c.novedad ? { id: c.novedad.id, tipo: c.novedad.tipo, fechaHora: c.novedad.fechaHora.toISOString() } : null,
+    registradoPorId: c.registradoPorId,
+    registradoPor: c.registradoPor,
+    createdAt: c.createdAt.toISOString(),
+    updatedAt: c.updatedAt.toISOString(),
+  };
+}

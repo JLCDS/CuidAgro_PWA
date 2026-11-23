@@ -33,21 +33,23 @@ model Finca {
   vacunos     Vacuno[]
   lotes       LoteOviparo[]
   alimentos   Alimento[]
+  novedades   Novedad[]
+  casosSalud  CasoSalud[]
 
   @@index([nombre])
   @@map("fincas")
 }
 
 model Usuario {
-  id               String            @id @default(uuid()) @db.Uuid
+  id               String              @id @default(uuid()) @db.Uuid
   nombre           String
-  correo           String            @unique
-  passwordHash     String            @map("password_hash")
-  estado           EstadoUsuario     @default(ACTIVO)
-  rolId            String            @map("rol_id") @db.Uuid
-  createdAt        DateTime          @default(now()) @map("created_at")
-  updatedAt        DateTime          @updatedAt @map("updated_at")
-  rol              Rol               @relation(fields: [rolId], references: [id], onDelete: Restrict)
+  correo           String              @unique
+  passwordHash     String              @map("password_hash")
+  estado           EstadoUsuario       @default(ACTIVO)
+  rolId            String              @map("rol_id") @db.Uuid
+  createdAt        DateTime            @default(now()) @map("created_at")
+  updatedAt        DateTime            @updatedAt @map("updated_at")
+  rol              Rol                 @relation(fields: [rolId], references: [id], onDelete: Restrict)
   fincas           UsuarioFinca[]
   refreshTokens    RefreshToken[]
   vacunosCreados   Vacuno[]
@@ -56,6 +58,9 @@ model Usuario {
   entradasAlimento EntradaAlimento[]
   consumosVacunos  ConsumoVacuno[]
   consumosLotes    ConsumoLote[]
+  novedades        Novedad[]
+  comentarios      ComentarioNovedad[]
+  casosSalud       CasoSalud[]
 
   @@index([rolId])
   @@index([estado])
@@ -133,7 +138,9 @@ model Vacuno {
   finca         Finca           @relation(fields: [fincaId], references: [id], onDelete: Restrict)
   creadoPor     Usuario         @relation(fields: [creadoPorId], references: [id], onDelete: Restrict)
 
-  consumos ConsumoVacuno[]
+  consumos   ConsumoVacuno[]
+  novedades  Novedad[]
+  casosSalud CasoSalud[]
 
   @@index([fincaId])
   @@index([estado])
@@ -160,7 +167,9 @@ model LoteOviparo {
   finca          Finca          @relation(fields: [fincaId], references: [id], onDelete: Restrict)
   creadoPor      Usuario        @relation(fields: [creadoPorId], references: [id], onDelete: Restrict)
 
-  consumos ConsumoLote[]
+  consumos   ConsumoLote[]
+  novedades  Novedad[]
+  casosSalud CasoSalud[]
 
   @@index([fincaId])
   @@index([estado])
@@ -263,4 +272,109 @@ model ConsumoLote {
   @@index([alimentoId, fecha])
   @@index([fecha])
   @@map("consumos_lotes")
+}
+
+enum TipoNovedad {
+  ENFERMEDAD
+  LESION
+  MUERTE
+  COMPORTAMIENTO
+  PRODUCCION
+  INFRAESTRUCTURA
+  OTRO
+}
+
+enum PrioridadNovedad {
+  BAJA
+  MEDIA
+  ALTA
+}
+
+enum EstadoNovedad {
+  ABIERTA
+  EN_SEGUIMIENTO
+  CERRADA
+}
+
+enum EstadoCasoSalud {
+  EN_OBSERVACION
+  EN_TRATAMIENTO
+  RECUPERADO
+  FALLECIDO
+}
+
+/// Exactamente uno de `vacunoId` / `loteId` (CHECK añadido a mano en la migración).
+model Novedad {
+  id              String              @id @default(uuid()) @db.Uuid
+  fincaId         String              @map("finca_id") @db.Uuid
+  vacunoId        String?             @map("vacuno_id") @db.Uuid
+  loteId          String?             @map("lote_id") @db.Uuid
+  tipo            TipoNovedad
+  prioridad       PrioridadNovedad    @default(MEDIA)
+  descripcion     String
+  fechaHora       DateTime            @default(now()) @map("fecha_hora") @db.Timestamptz(3)
+  latitud         Decimal?            @db.Decimal(9, 6)
+  longitud        Decimal?            @db.Decimal(9, 6)
+  precisionMetros Int?                @map("precision_metros")
+  fotoArchivo     String?             @map("foto_archivo")
+  fotoMime        String?             @map("foto_mime")
+  fotoBytes       Int?                @map("foto_bytes")
+  estado          EstadoNovedad       @default(ABIERTA)
+  cerradaEn       DateTime?           @map("cerrada_en") @db.Timestamptz(3)
+  registradoPorId String              @map("registrado_por_id") @db.Uuid
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+  finca           Finca               @relation(fields: [fincaId], references: [id], onDelete: Restrict)
+  vacuno          Vacuno?             @relation(fields: [vacunoId], references: [id], onDelete: Restrict)
+  lote            LoteOviparo?        @relation(fields: [loteId], references: [id], onDelete: Restrict)
+  registradoPor   Usuario             @relation(fields: [registradoPorId], references: [id], onDelete: Restrict)
+  comentarios     ComentarioNovedad[]
+  casosSalud      CasoSalud[]
+
+  @@index([fincaId, fechaHora])
+  @@index([vacunoId])
+  @@index([loteId])
+  @@map("novedades")
+}
+
+model ComentarioNovedad {
+  id        String   @id @default(uuid()) @db.Uuid
+  novedadId String   @map("novedad_id") @db.Uuid
+  autorId   String   @map("autor_id") @db.Uuid
+  texto     String
+  createdAt DateTime @default(now()) @map("created_at")
+  novedad   Novedad  @relation(fields: [novedadId], references: [id], onDelete: Cascade)
+  autor     Usuario  @relation(fields: [autorId], references: [id], onDelete: Restrict)
+
+  @@index([novedadId, createdAt])
+  @@map("comentarios_novedad")
+}
+
+/// Exactamente uno de `vacunoId` / `loteId` (CHECK añadido a mano en la migración).
+model CasoSalud {
+  id                String          @id @default(uuid()) @db.Uuid
+  fincaId           String          @map("finca_id") @db.Uuid
+  vacunoId          String?         @map("vacuno_id") @db.Uuid
+  loteId            String?         @map("lote_id") @db.Uuid
+  novedadId         String?         @map("novedad_id") @db.Uuid
+  diagnostico       String
+  sintomas          String?
+  estado            EstadoCasoSalud @default(EN_OBSERVACION)
+  fechaInicio       DateTime        @map("fecha_inicio") @db.Date
+  fechaFin          DateTime?       @map("fecha_fin") @db.Date
+  animalesAfectados Int?            @map("animales_afectados")
+  observaciones     String?
+  registradoPorId   String          @map("registrado_por_id") @db.Uuid
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+  finca             Finca           @relation(fields: [fincaId], references: [id], onDelete: Restrict)
+  vacuno            Vacuno?         @relation(fields: [vacunoId], references: [id], onDelete: Restrict)
+  lote              LoteOviparo?    @relation(fields: [loteId], references: [id], onDelete: Restrict)
+  novedad           Novedad?        @relation(fields: [novedadId], references: [id], onDelete: SetNull)
+  registradoPor     Usuario         @relation(fields: [registradoPorId], references: [id], onDelete: Restrict)
+
+  @@index([fincaId, estado])
+  @@index([vacunoId])
+  @@index([loteId])
+  @@map("casos_salud")
 }

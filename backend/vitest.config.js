@@ -1,6 +1,10 @@
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { defineConfig } from 'vitest/config';
 
 export const URL_BD_PRUEBAS = 'postgresql://cuidagro:cuidagro_dev@127.0.0.1:5433/cuidagro_test';
+
+export const DIR_UPLOADS_PRUEBAS = join(tmpdir(), 'cuidagro-uploads-pruebas');
 
 export default defineConfig({
   test: {
@@ -14,6 +18,7 @@ export default defineConfig({
     env: {
       NODE_ENV: 'test',
       DATABASE_URL: URL_BD_PRUEBAS,
+      UPLOADS_DIR: DIR_UPLOADS_PRUEBAS,
       JWT_SECRET: 'secreto-solo-para-pruebas-automatizadas-0123456789',
     },
   },
