@@ -1,6 +1,6 @@
 # Fase 5. Salud y novedades
 
-**Estado:** en construcción (2026-11-23).
+**Estado:** terminada (2026-11-23), en revisión del equipo.
 **Historias:** HU012 a HU015. Cubre la HU oficial del Excel "Registrar novedades: descripción, captura de foto, ubicación GPS, lote de ovíparo".
 
 | HU | Alcance supuesto |
@@ -109,10 +109,74 @@ Los errores siguen el resto del proyecto: 400 `VALIDACION` (con `detalles` por c
 - **Menú:** "Novedades" y "Salud", según permiso.
 - **Reglas de la Fase 3:** a 375 px sin scroll horizontal, estado en `signal` (la app no usa `zone.js`) y columnas de acción solo cuando hay acciones.
 
+## Qué se construyó
+
+| Capa | Archivos |
+|---|---|
+| Modelo | 4 enums; `Novedad`, `ComentarioNovedad` y `CasoSalud`; migración `20261123000000_salud_novedades` con los `CHECK num_nonnulls(vacuno_id, lote_id) = 1` |
+| Backend | `lib/fotos.js` (multer en memoria, bytes mágicos, disco); `modules/novedades/` y `modules/salud/`; serializadores `aNovedad`, `aComentario` y `aCasoSalud`; variable `UPLOADS_DIR`; dependencia `multer` 2.5.0 |
+| Frontend | En `core/`: `salud-modelos.ts`, `novedades-api.ts`, `salud-api.ts` e `imagen.ts` (reducción con canvas). `compartido/foto-novedad.ts`. En `paginas/`: `novedades.ts`, `novedad-form.ts`, `novedad-detalle.ts`, `salud.ts`, `caso-form.ts` e `historial-dialogo.ts`. Botón Historial en vacunos y lotes |
+| Transversal | Menú móvil con 4 opciones y "Más" cuando hay más de 5 (`layout/shell.ts`) |
+
 ## Decisiones y motivos
 
-Se completa al cerrar la fase.
+| Decisión | Motivo |
+|---|---|
+| Novedad de lote **o** de vacuno; en el formulario el lote va por defecto | El Excel pide lote de ovíparos; el prompt ampliado añade animales. Se cumplen ambos. |
+| Fotos en disco y servidas por una ruta autenticada; el frontend las pide como blob | Sin URL pública, la foto respeta el alcance por finca. `<img src>` no envía el token. |
+| Validación por bytes mágicos y nombre de archivo generado por el servidor | No se confía en el `mimetype` ni en el nombre que envía el cliente. |
+| El cliente reduce a 1600 px en JPEG 0,8 antes de subir | Las fotos del celular pesan varios MB y en el campo la señal es débil. Un PNG de 19 MB quedó en 1,3 MB. |
+| La ubicación GPS nunca bloquea el guardado | En la finca el GPS puede fallar o el usuario negar el permiso; la novedad es lo importante. |
+| Mapa como enlace a OpenStreetMap, sin incrustar | Sin dependencias ni claves de API, y funciona en cualquier celular. |
+| `FALLECIDO` no da de baja al vacuno automáticamente; la interfaz lo ofrece | La baja tiene su propio motivo y la decide una persona. |
+| `novedadId` inexistente o ajeno → 404; existente pero de otro animal → 400 | Mismo criterio de alcance que el resto del proyecto. |
+| Los permisos se revisan antes que el alcance (ayudante de otra finca que cambia el estado → 403) | Es el orden del middleware en todas las fases. |
+| Menú móvil: 4 opciones + "Más" | Con 9 opciones del administrador, la barra con desplazamiento escondía módulos sin aviso. |
 
 ## Cómo verificar
 
-Se completa al cerrar la fase.
+```bash
+npm test                                     # 332 pruebas de backend (47 nuevas)
+npm test --prefix frontend -- --watch=false  # 14 pruebas de frontend
+npm run build
+```
+
+Resultado al cerrar la fase (2026-11-23): 332/332 y 14/14, con build correcto (verificado por el coordinador).
+
+QA en un entorno aislado (`cuidagro_qa`, API en :3190 con `UPLOADS_DIR` propio, Angular en :4290):
+- **API: 206 de 206 comprobaciones aprobadas.**
+  - Permisos y alcance.
+  - Exactamente un sujeto, con validación y `CHECK`.
+  - Regla del ayudante, incluidos los bordes de medianoche en Bogotá.
+  - `cerradaEn`, filtros y orden, y comentarios.
+  - Reglas de `fechaFin` y `activos`.
+  - Fotos:
+    - JPEG, PNG y WebP aceptados.
+    - Texto disfrazado, SVG y más de 5 MB dan 400, nunca 500.
+    - Cabeceras `nosniff` y `private`.
+    - 401 sin token y 404 si es ajena.
+    - No hay ruta estática.
+    - Un nombre `../../` se ignora.
+    - El reemplazo y el borrado eliminan el archivo anterior, y no quedan archivos huérfanos.
+- **E2E con Playwright** (1280 y 375 px; administrador, veterinario y ayudante):
+  - Crear con foto y GPS; caso sin permiso de ubicación y "Reintentar".
+  - Detalle con mapa, comentarios y cambio de estado.
+  - Caso creado desde una novedad.
+  - Cierre como recuperado y como fallecido, con oferta de baja.
+  - Historial, y menú "Más".
+  - Sin scroll horizontal ni respuestas 5xx.
+- **HU del Excel** cumplida de punta a punta como ayudante a 375 px: novedad de lote con descripción, foto y GPS.
+
+**No probado:** cámara real (solo `setInputFiles`), Firefox, WebKit y dispositivos físicos, y la falla de una transacción después de escribir la foto.
+
+## Particularidades técnicas
+
+- La foto solo se valida por su firma: un archivo que empieza con `FF D8 FF` seguido de basura se acepta y se sirve con `nosniff`. Es aceptable porque el frontend siempre recodifica con canvas.
+- Al editar una novedad, el frontend hace primero el PATCH y luego el PUT o DELETE de la foto. Si la segunda llamada falla, los campos ya quedaron guardados y se muestra el error.
+- La interfaz no permite editar la ubicación de una novedad existente (la API sí).
+- `created_at` es un `timestamp` sin zona que guarda UTC; la regla de "hoy" lo convierte a Bogotá.
+
+## Pendientes para fases siguientes
+
+- Fase 6: los tratamientos se ligan a `casos_salud`.
+- Fase 8: crear novedades sin conexión (la foto y la ubicación en cola) y notificaciones push de novedades de prioridad alta.
