@@ -9,6 +9,10 @@ import { alimentosRouter } from './modules/alimentos/alimentos.routes.js';
 import { consumosRouter } from './modules/consumos/consumos.routes.js';
 import { novedadesRouter } from './modules/novedades/novedades.routes.js';
 import { saludRouter } from './modules/salud/salud.routes.js';
+import { medicamentosRouter } from './modules/medicamentos/medicamentos.routes.js';
+import { tratamientosRouter } from './modules/tratamientos/tratamientos.routes.js';
+import { dashboardRouter } from './modules/dashboard/dashboard.routes.js';
+import { reportesRouter } from './modules/reportes/reportes.routes.js';
 import { fincasRouter } from './modules/fincas/fincas.routes.js';
 import { lotesRouter } from './modules/lotes/lotes.routes.js';
 import { usuariosRouter } from './modules/usuarios/usuarios.routes.js';
@@ -37,6 +41,10 @@ export function createApp({ loginMaxIntentos = env.LOGIN_MAX_INTENTOS } = {}) {
   app.use('/api/consumos', consumosRouter);
   app.use('/api/novedades', novedadesRouter);
   app.use('/api/salud', saludRouter);
+  app.use('/api/medicamentos', medicamentosRouter);
+  app.use('/api/tratamientos', tratamientosRouter);
+  app.use('/api/dashboard', dashboardRouter);
+  app.use('/api/reportes', reportesRouter);
   app.use('/api', notFoundApi);
 
   app.use(errorHandler);

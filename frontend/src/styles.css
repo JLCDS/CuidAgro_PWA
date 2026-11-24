@@ -421,3 +421,22 @@ textarea.input {
   background: #f6e7c1;
   color: #5c4005;
 }
+
+/* Impresión: solo el contenido de la página. */
+@media print {
+  .barra,
+  .menu,
+  .no-imprimir,
+  .btn {
+    display: none !important;
+  }
+
+  .contenido {
+    max-width: none;
+    padding: 0;
+  }
+
+  body {
+    background: #fff;
+  }
+}

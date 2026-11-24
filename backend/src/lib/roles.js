@@ -25,6 +25,12 @@ const MATRIZ_PERMISOS = {
     'novedades:gestionar',
     'salud:consultar',
     'salud:gestionar',
+    'medicamentos:consultar',
+    'medicamentos:gestionar',
+    'tratamientos:consultar',
+    'tratamientos:registrar',
+    'dashboard:consultar',
+    'reportes:consultar',
   ],
   VETERINARIO: [
     'fincas:consultar',
@@ -38,8 +44,14 @@ const MATRIZ_PERMISOS = {
     'novedades:gestionar',
     'salud:consultar',
     'salud:gestionar',
+    'medicamentos:consultar',
+    'medicamentos:gestionar',
+    'tratamientos:consultar',
+    'tratamientos:registrar',
+    'dashboard:consultar',
+    'reportes:consultar',
   ],
-  AYUDANTE: ['fincas:consultar', 'animales:consultar', 'alimentos:consultar', 'consumos:registrar', 'novedades:registrar', 'salud:consultar'],
+  AYUDANTE: ['fincas:consultar', 'animales:consultar', 'alimentos:consultar', 'consumos:registrar', 'novedades:registrar', 'salud:consultar', 'medicamentos:consultar', 'tratamientos:consultar', 'dashboard:consultar'],
 };
 
 export const permisosDe = (rol) => MATRIZ_PERMISOS[rol] ?? [];

@@ -1,6 +1,8 @@
 export type Rol = 'ADMINISTRADOR' | 'VETERINARIO' | 'AYUDANTE';
 export type EstadoUsuario = 'ACTIVO' | 'INACTIVO';
 export type Permiso =
+  | 'dashboard:consultar'
+  | 'reportes:consultar'
   | 'usuarios:gestionar'
   | 'fincas:gestionar'
   | 'fincas:consultar'
@@ -13,7 +15,11 @@ export type Permiso =
   | 'novedades:registrar'
   | 'novedades:gestionar'
   | 'salud:consultar'
-  | 'salud:gestionar';
+  | 'salud:gestionar'
+  | 'medicamentos:consultar'
+  | 'medicamentos:gestionar'
+  | 'tratamientos:consultar'
+  | 'tratamientos:registrar';
 
 export const ROLES: { valor: Rol; etiqueta: string }[] = [
   { valor: 'ADMINISTRADOR', etiqueta: 'Administrador' },

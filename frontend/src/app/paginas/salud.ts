@@ -1,21 +1,24 @@
 import { Component, computed, DestroyRef, effect, inject, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import { catchError, EMPTY, Subject, switchMap, tap } from 'rxjs';
+import { catchError, EMPTY, forkJoin, of, Subject, switchMap, tap } from 'rxjs';
 import { BajaDialogo } from '../compartido/baja-dialogo';
 import { Auth } from '../core/auth';
 import { mensajeDeError } from '../core/errores';
 import { FincaActiva } from '../core/finca-activa';
 import { LotesApi } from '../core/lotes-api';
+import { avisoStock, formatearCantidad, Tratamiento } from '../core/medicamentos-modelos';
 import { etiquetaDe, formatearFecha } from '../core/modelos';
 import { SaludApi } from '../core/salud-api';
 import { CasoSalud, EstadoCasoSalud, ESTADOS_CASO } from '../core/salud-modelos';
+import { TratamientosApi } from '../core/tratamientos-api';
 import { VacunosApi } from '../core/vacunos-api';
 import { CasoForm } from './caso-form';
+import { SujetoTratamiento, TratamientoForm } from './tratamiento-form';
 
 @Component({
   selector: 'app-salud',
-  imports: [RouterLink, CasoForm, BajaDialogo],
+  imports: [RouterLink, CasoForm, BajaDialogo, TratamientoForm],
   template: `
     <div class="cabecera-pagina">
       <h1>{{ filtroEstado() === 'ACTIVOS' ? 'Enfermos actuales' : 'Casos de salud' }}</h1>
@@ -74,7 +77,7 @@ import { CasoForm } from './caso-form';
               <th>Diagnóstico</th>
               <th>Estado</th>
               <th>Fechas</th>
-              @if (puedeGestionar()) {
+              @if (hayAcciones()) {
                 <th><span class="sr-only">Acciones</span></th>
               }
             </tr>
@@ -91,6 +94,9 @@ import { CasoForm } from './caso-form';
                   @if (c.sintomas) {
                     <br /><span class="suave">{{ c.sintomas }}</span>
                   }
+                  @for (t of tratamientosDe(c.id); track t.id) {
+                    <br /><span class="suave tratamiento">Tratamiento: {{ t.medicamento.nombre }} · {{ cantidad(t) }} · {{ fecha(t.fecha) }}</span>
+                  }
                 </td>
                 <td data-etiqueta="Estado">
                   <span class="insignia" [class.insignia-inactivo]="c.activo" [class.insignia-activo]="c.estado === 'RECUPERADO'">{{ etiqueta(estados, c.estado) }}</span>
@@ -98,10 +104,15 @@ import { CasoForm } from './caso-form';
                 <td data-etiqueta="Fechas">
                   {{ fecha(c.fechaInicio) }}@if (c.fechaFin) { a {{ fecha(c.fechaFin) }} }
                 </td>
-                @if (puedeGestionar()) {
+                @if (hayAcciones()) {
                   <td>
                     <div class="acciones">
-                      <button type="button" class="btn" (click)="abrir(c)">Editar</button>
+                      @if (puedeRegistrarTratamiento()) {
+                        <button type="button" class="btn btn-primario" (click)="registrarTratamiento(c)">Registrar tratamiento</button>
+                      }
+                      @if (puedeGestionar()) {
+                        <button type="button" class="btn" (click)="abrir(c)">Editar</button>
+                      }
                     </div>
                   </td>
                 }
@@ -118,6 +129,12 @@ import { CasoForm } from './caso-form';
       }
     }
 
+    @if (tratamientoDe(); as s) {
+      @if (fincaId(); as id) {
+        <app-tratamiento-form [fincaId]="id" [sujeto]="s" (guardado)="alRegistrarTratamiento($event)" (cerrado)="tratamientoDe.set(null)" />
+      }
+    }
+
     @if (bajaDe(); as v) {
       <app-baja-dialogo
         titulo="Dar de baja al vacuno"
@@ -130,6 +147,7 @@ import { CasoForm } from './caso-form';
     .filtros-salud { display: grid; gap: 10px; grid-template-columns: 1fr; margin-bottom: 16px; }
     @media (min-width: 720px) { .filtros-salud { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
     .largo { overflow-wrap: anywhere; }
+    .tratamiento { display: inline-block; margin-top: 2px; }
   `,
 })
 export class Salud {
@@ -137,17 +155,24 @@ export class Salud {
   private readonly auth = inject(Auth);
   private readonly vacunosApi = inject(VacunosApi);
   private readonly lotesApi = inject(LotesApi);
+  private readonly tratamientosApi = inject(TratamientosApi);
   private readonly recarga$ = new Subject<void>();
 
   protected readonly estados = ESTADOS_CASO;
   protected readonly etiqueta = etiquetaDe;
   protected readonly fecha = formatearFecha;
+  protected readonly cantidad = (t: Tratamiento) => formatearCantidad(t.dosis, t.medicamento.unidad);
 
   protected readonly fincaId = inject(FincaActiva).id;
   protected readonly puedeGestionar = computed(() => {
     this.auth.usuario();
     return this.auth.tienePermiso('salud:gestionar');
   });
+  protected readonly puedeRegistrarTratamiento = computed(() => {
+    this.auth.usuario();
+    return this.auth.tienePermiso('tratamientos:registrar');
+  });
+  protected readonly hayAcciones = computed(() => this.puedeGestionar() || this.puedeRegistrarTratamiento());
   protected readonly puedeDarBaja = computed(() => {
     this.auth.usuario();
     return this.auth.tienePermiso('animales:gestionar');
@@ -164,6 +189,8 @@ export class Salud {
   protected readonly lotes = signal<{ id: string; nombre: string }[]>([]);
 
   protected readonly casos = signal<CasoSalud[]>([]);
+  private readonly tratamientos = signal<Tratamiento[]>([]);
+  protected readonly tratamientoDe = signal<SujetoTratamiento | null>(null);
   protected readonly cargando = signal(true);
   protected readonly error = signal<string | null>(null);
   protected readonly aviso = signal<string | null>(null);
@@ -181,13 +208,16 @@ export class Salud {
         switchMap(() => {
           const [clase, id] = this.sujeto().split(':');
           const e = this.filtroEstado();
-          return this.api
-            .listar({
+          const sujetoFiltro = id ? { [clase === 'lote' ? 'loteId' : 'vacunoId']: id } : {};
+          return forkJoin({
+            casos: this.api.listar({
               fincaId: this.fincaId()!,
               ...(e === 'ACTIVOS' ? { activos: true } : e === 'TODOS' ? {} : { estado: e }),
-              ...(id ? { [clase === 'lote' ? 'loteId' : 'vacunoId']: id } : {}),
-            })
-            .pipe(
+              ...sujetoFiltro,
+            }),
+            // Los tratamientos son un complemento: si fallan, la lista de casos igual se muestra.
+            tratamientos: this.tratamientosApi.listar({ fincaId: this.fincaId()!, ...sujetoFiltro }).pipe(catchError(() => of([] as Tratamiento[]))),
+          }).pipe(
               catchError((err) => {
                 this.error.set(mensajeDeError(err));
                 this.cargando.set(false);
@@ -197,8 +227,9 @@ export class Salud {
         }),
         takeUntilDestroyed(inject(DestroyRef)),
       )
-      .subscribe((lista) => {
-        this.casos.set(lista);
+      .subscribe(({ casos, tratamientos }) => {
+        this.casos.set(casos);
+        this.tratamientos.set(tratamientos);
         this.cargando.set(false);
       });
 
@@ -223,6 +254,22 @@ export class Salud {
         }
       });
     });
+  }
+
+  protected tratamientosDe(casoId: string): Tratamiento[] {
+    return this.tratamientos().filter((t) => t.casoSaludId === casoId);
+  }
+
+  protected registrarTratamiento(caso: CasoSalud): void {
+    const s = caso.vacuno ?? caso.lote;
+    this.aviso.set(null);
+    this.tratamientoDe.set({ tipo: caso.vacuno ? 'vacuno' : 'lote', id: s!.id, nombre: s!.nombre, casoSaludId: caso.id });
+  }
+
+  protected alRegistrarTratamiento(t: Tratamiento): void {
+    this.tratamientoDe.set(null);
+    this.aviso.set([ 'Tratamiento registrado.', avisoStock(t) ].filter(Boolean).join(' '));
+    this.recarga$.next();
   }
 
   protected cambiar<T>(filtro: { set(valor: T): void }, valor: T): void {

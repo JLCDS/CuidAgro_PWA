@@ -62,6 +62,24 @@ export const routes: Routes = [
         loadComponent: () => import('./paginas/salud').then((m) => m.Salud),
       },
       {
+        path: 'medicamentos',
+        title: 'Medicamentos · CuidAgro',
+        canActivate: [permisoGuard('medicamentos:consultar')],
+        loadComponent: () => import('./paginas/medicamentos').then((m) => m.Medicamentos),
+      },
+      {
+        path: 'tratamientos',
+        title: 'Tratamientos · CuidAgro',
+        canActivate: [permisoGuard('tratamientos:consultar')],
+        loadComponent: () => import('./paginas/tratamientos').then((m) => m.Tratamientos),
+      },
+      {
+        path: 'reportes',
+        title: 'Reportes · CuidAgro',
+        canActivate: [permisoGuard('reportes:consultar')],
+        loadComponent: () => import('./paginas/reportes').then((m) => m.Reportes),
+      },
+      {
         path: 'fincas',
         title: 'Fincas · CuidAgro',
         canActivate: [permisoGuard('fincas:gestionar')],

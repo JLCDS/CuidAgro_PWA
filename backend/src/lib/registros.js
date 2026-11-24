@@ -32,7 +32,9 @@ export const nombreSchema = z
   .string({ error: 'El nombre es obligatorio' })
   .trim()
   .min(2, 'El nombre debe tener al menos 2 caracteres')
-  .max(80, 'El nombre no puede superar 80 caracteres');
+  .max(80, 'El nombre no puede superar 80 caracteres')
+  // PostgreSQL rechaza el byte NUL en texto: sin esto, la consulta falla con 500.
+  .refine((v) => !v.includes('\u0000'), 'El nombre contiene caracteres no válidos');
 
 /** Acepta YYYY-MM-DD real y no futura; devuelve un Date a medianoche UTC, apto para columnas @db.Date. */
 export const fechaNoFuturaSchema = z
@@ -111,6 +113,7 @@ const TABLAS = {
   vacuno: Prisma.raw('vacunos'),
   loteOviparo: Prisma.raw('lotes_oviparos'),
   alimento: Prisma.raw('alimentos'),
+  medicamento: Prisma.raw('medicamentos'),
 };
 
 /** Mismo criterio que el índice único (lower en la base), sin comodines de ILIKE. */

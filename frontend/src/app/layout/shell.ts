@@ -59,6 +59,27 @@ const MENU: ItemMenu[] = [
     icono: 'M12 21s-8-5-8-11a4.500 4.500 0 018-2.800A4.500 4.500 0 0120 10c0 6-8 11-8 11zM12 8v6M9 11h6',
   },
   {
+    ruta: '/medicamentos',
+    etiqueta: 'Medicamentos',
+    exacto: false,
+    permiso: 'medicamentos:consultar',
+    icono: 'M10.500 20.500a4.950 4.950 0 01-7-7l10-10a4.950 4.950 0 017 7zM8.500 8.500l7 7',
+  },
+  {
+    ruta: '/tratamientos',
+    etiqueta: 'Tratamientos',
+    exacto: false,
+    permiso: 'tratamientos:consultar',
+    icono: 'M19 3l2 2-4 4-2-2zM17 7L7 17l-4 1 1-4 10-10zM12 12l-2-2',
+  },
+  {
+    ruta: '/reportes',
+    etiqueta: 'Reportes',
+    exacto: false,
+    permiso: 'reportes:consultar',
+    icono: 'M4 20V10M10 20V4M16 20v-8M22 20H2',
+  },
+  {
     ruta: '/usuarios',
     etiqueta: 'Usuarios',
     exacto: false,

@@ -1,6 +1,6 @@
 # Fase 6. Medicamentos y tratamientos
 
-**Estado:** en construcción (2026-11-23).
+**Estado:** terminada, en revisión (2026-11-24).
 **Historias:** HU016 y HU017. No hay HU oficial del Excel para esta fase: es alcance del prompt ampliado. No debe romper las fases anteriores.
 
 | HU | Alcance supuesto |
@@ -102,8 +102,32 @@ Respuesta de tratamiento: los campos, más `vacuno`/`lote`, `medicamento {id,nom
 
 ## Decisiones y motivos
 
-Se completa al cerrar la fase.
+- **Stock decimal:** Decimal(12,2) en la base y números con máximo 2 decimales en la API. Las diferencias al editar se redondean a centésimas para evitar errores de coma flotante.
+- **Editar un tratamiento:** si cambia el medicamento, se valida el nuevo (activo, de la misma finca, no vencido), se devuelve la dosis al anterior y se descuenta del nuevo; los días de retiro no enviados se toman del nuevo medicamento. Si el medicamento no cambia, no se vuelve a exigir que esté vigente (el tratamiento ya se aplicó).
+- **Caso de salud ajeno o inexistente:** 404 (igual que la novedad en la Fase 5); de otro animal o lote: 400 en `casoSaludId`.
+- **Días de retiro:** si no vienen en el cuerpo se copian del medicamento; un `null` explícito significa "sin retiro".
+- **Vencimiento:** un medicamento que vence hoy aún es aplicable; vencido es estrictamente anterior a hoy (Bogotá).
+- **Historial y `/salud`:** los tratamientos son un complemento; si su carga falla, el resto se muestra igual.
 
 ## Cómo verificar
 
-Se completa al cerrar la fase.
+- Backend: `npm test --prefix backend` (incluye `medicamentos.test.js` y `tratamientos.test.js`).
+- Frontend: `npm run build --prefix frontend` y `npm test --prefix frontend -- --watch=false`.
+- Manual: crear un medicamento con stock y vencimiento, registrar un tratamiento desde `/salud`, comprobar el stock, la insignia "En retiro" en `/tratamientos` y el Historial del animal; revisar a 375 px que no hay scroll horizontal.
+
+Resultado al cerrar la fase (2026-11-24): backend 473/473 (suite completa, incluida la Fase 7) y frontend 34/34, con build correcto (verificado por el coordinador).
+
+QA en un entorno aislado (`cuidagro_qa`, API congelada en :3190, Angular compilado en :4290):
+- **API: 260 de 262 comprobaciones aprobadas.** Las 2 fallas eran un solo defecto, ya corregido (ver abajo). Se cubrieron permisos de los tres roles, alcance por finca, validaciones, alertas de stock y vencimiento (incluido el que vence hoy), tratamientos a vacuno y lote, ligados a casos, edición con cambio de medicamento, borrado, retiro y concurrencia (DELETE y altas simultáneas sin descuadre de stock).
+- **E2E con Playwright** (1280 y 375 px; administrador, veterinario y ayudante): `/medicamentos`, `/tratamientos`, registro desde `/salud`, historial con "En retiro", menú "Más" y regresión de las páginas anteriores. Sin fallos reales, sin 5xx ni errores de JavaScript, sin scroll horizontal.
+
+Corregido tras la QA:
+- Un nombre con byte NUL daba 500 (PostgreSQL no admite `\u0000` en texto). Era heredado y afectaba a todo lo que usa `nombreSchema`; ahora responde 400 en `nombre`, con prueba en `medicamentos.test.js`.
+- El 409 por nombre duplicado de medicamento salía en la alerta general; ahora sale bajo el campo `nombre`.
+
+**No probado:** Firefox, WebKit y dispositivos reales; el "vence hoy" en la medianoche de Bogotá (solo por API); formularios de lote, alimento, consumo y novedad en el navegador (solo por API).
+
+## Pendientes para fases siguientes
+
+- Fase 8: registrar tratamientos sin conexión (cola) y avisos de vencimiento o stock bajo.
+- El formulario de alimentos (y quizá otros de fases anteriores) también muestra el 409 de duplicado en la alerta general; se dejó así porque no lo pide esta fase.

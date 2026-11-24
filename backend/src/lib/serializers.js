@@ -219,3 +219,105 @@ export function aCasoSalud(c) {
     updatedAt: c.updatedAt.toISOString(),
   };
 }
+
+// ---- Medicamentos y tratamientos ----
+
+const DIAS_POR_VENCER = 30;
+const DIA_MS = 86_400_000;
+
+/** `hoy` es YYYY-MM-DD (Bogotá). Indicadores de vencimiento de una fecha (o null). */
+export function estadoVencimiento(fechaVencimiento, hoy) {
+  if (!fechaVencimiento) return { vencido: false, porVencer: false };
+  const dias = Math.round((fechaVencimiento - new Date(`${hoy}T00:00:00Z`)) / DIA_MS);
+  return { vencido: dias < 0, porVencer: dias >= 0 && dias <= DIAS_POR_VENCER };
+}
+
+export const bajoStockMedicamento = (m) => Number(m.stock) <= Number(m.stockMinimo);
+
+export function aMedicamento(m, hoy) {
+  return {
+    id: m.id,
+    fincaId: m.fincaId,
+    finca: m.finca,
+    nombre: m.nombre,
+    tipo: m.tipo,
+    unidad: m.unidad,
+    stock: Number(m.stock),
+    stockMinimo: Number(m.stockMinimo),
+    fechaVencimiento: aFechaISO(m.fechaVencimiento),
+    laboratorio: m.laboratorio,
+    diasRetiroCarne: m.diasRetiroCarne,
+    diasRetiroLeche: m.diasRetiroLeche,
+    estado: m.estado,
+    motivoBaja: m.motivoBaja,
+    observaciones: m.observaciones,
+    bajoStock: bajoStockMedicamento(m),
+    ...estadoVencimiento(m.fechaVencimiento, hoy),
+    creadoPorId: m.creadoPorId,
+    createdAt: m.createdAt.toISOString(),
+    updatedAt: m.updatedAt.toISOString(),
+  };
+}
+
+export function aEntradaMedicamento(e) {
+  return {
+    id: e.id,
+    medicamentoId: e.medicamentoId,
+    cantidad: Number(e.cantidad),
+    fecha: aFechaISO(e.fecha),
+    fechaVencimiento: aFechaISO(e.fechaVencimiento),
+    nota: e.nota,
+    registradoPorId: e.registradoPorId,
+    createdAt: e.createdAt.toISOString(),
+  };
+}
+
+export const includeTratamiento = {
+  finca: { select: { id: true, nombre: true } },
+  vacuno: { select: { id: true, nombre: true } },
+  lote: { select: { id: true, nombre: true } },
+  medicamento: { select: { id: true, nombre: true, unidad: true, stock: true, stockMinimo: true } },
+  casoSalud: { select: { id: true, diagnostico: true } },
+  registradoPor: { select: { id: true, nombre: true } },
+};
+
+/** `fecha` + `dias` como YYYY-MM-DD, o null si no hay días de retiro. */
+const finRetiro = (fecha, dias) =>
+  dias === null || dias === undefined ? null : new Date(fecha.getTime() + dias * DIA_MS).toISOString().slice(0, 10);
+
+export function aTratamiento(t, hoy) {
+  const finRetiroCarne = finRetiro(t.fecha, t.diasRetiroCarne);
+  const finRetiroLeche = finRetiro(t.fecha, t.diasRetiroLeche);
+  return {
+    id: t.id,
+    fincaId: t.fincaId,
+    vacunoId: t.vacunoId,
+    loteId: t.loteId,
+    casoSaludId: t.casoSaludId,
+    medicamentoId: t.medicamentoId,
+    dosis: Number(t.dosis),
+    via: t.via,
+    fecha: aFechaISO(t.fecha),
+    diasRetiroCarne: t.diasRetiroCarne,
+    diasRetiroLeche: t.diasRetiroLeche,
+    finRetiroCarne,
+    finRetiroLeche,
+    enRetiro: [finRetiroCarne, finRetiroLeche].some((f) => f !== null && f >= hoy),
+    observaciones: t.observaciones,
+    vacuno: sujeto(t.vacuno),
+    lote: sujeto(t.lote),
+    medicamento: {
+      id: t.medicamento.id,
+      nombre: t.medicamento.nombre,
+      unidad: t.medicamento.unidad,
+      stock: Number(t.medicamento.stock),
+      bajoStock: bajoStockMedicamento(t.medicamento),
+    },
+    casoSalud: t.casoSalud ? { id: t.casoSalud.id, diagnostico: t.casoSalud.diagnostico } : null,
+    finca: t.finca,
+    registradoPorId: t.registradoPorId,
+    registradoPor: t.registradoPor,
+    createdAt: t.createdAt.toISOString(),
+    updatedAt: t.updatedAt.toISOString(),
+  };
+}

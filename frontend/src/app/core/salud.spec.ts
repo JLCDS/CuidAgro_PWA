@@ -1,6 +1,6 @@
 import { dimensionesReducidas } from './imagen';
 import { diaBogota, enlaceMapa, erroresPorCampo, puedeEditarNovedad } from './salud-modelos';
-import { ordenarHistorial } from '../paginas/historial-dialogo';
+import { idEntrada, ordenarHistorial } from '../paginas/historial-dialogo';
 import { CasoSalud, Novedad } from './salud-modelos';
 
 describe('utilidades de salud y novedades', () => {
@@ -38,7 +38,7 @@ describe('utilidades de salud y novedades', () => {
     const caso = { id: 'c1', fechaInicio: '2026-11-20' } as CasoSalud;
     const n1 = { id: 'n1', fechaHora: '2026-11-22T10:00:00.000Z' } as Novedad;
     const n2 = { id: 'n2', fechaHora: '2026-11-10T10:00:00.000Z' } as Novedad;
-    const ids = ordenarHistorial([caso], [n2, n1]).map((e) => (e.clase === 'caso' ? e.caso.id : e.novedad.id));
+    const ids = ordenarHistorial([caso], [n2, n1]).map((e) => (idEntrada(e)));
     expect(ids).toEqual(['n1', 'c1', 'n2']);
   });
 });

@@ -11,8 +11,8 @@ Se crea o actualiza al cerrar cada fase. El código y las pruebas siguen siendo 
 | 3. Animales y lotes | HU004 a HU007 | Terminada, en revisión | [fase-03-animales-lotes.md](fase-03-animales-lotes.md) |
 | 4. Alimentación e inventario | HU008 a HU011 | Terminada, en revisión | [fase-04-alimentacion-inventario.md](fase-04-alimentacion-inventario.md) |
 | 5. Salud y novedades | HU012 a HU015 | Terminada, en revisión | [fase-05-salud-novedades.md](fase-05-salud-novedades.md) |
-| 6. Medicamentos y tratamientos | HU016, HU017 | Pendiente | — |
-| 7. Dashboard y reportes | HU018, HU019 | Pendiente | — |
+| 6. Medicamentos y tratamientos | HU016, HU017 | Terminada, en revisión | [fase-06-medicamentos-tratamientos.md](fase-06-medicamentos-tratamientos.md) |
+| 7. Dashboard y reportes | HU018, HU019 | Terminada, en revisión | [fase-07-dashboard-reportes.md](fase-07-dashboard-reportes.md) |
 | 8. PWA y offline | HU020, HU021 | Pendiente | — |
 | 9. Pruebas y despliegue | — | Pendiente | — |
 
