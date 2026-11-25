@@ -288,9 +288,9 @@ No probado en ninguna fase: Firefox, Safari (WebKit) y dispositivos físicos; la
 
 ## Pendientes y Fase 9
 
-La Fase 8 está terminada pero sin commit; queda la Fase 9 (pruebas finales y despliegue) y confirmar con el equipo los supuestos abiertos.
+La Fase 8 está terminada y en el commit 3d82fdc de la rama desarrollo; queda la Fase 9 (pruebas finales y despliegue) y confirmar con el equipo los supuestos abiertos.
 
-- [ ] Commit de la Fase 8 en la rama `desarrollo`, cuando el usuario lo apruebe
+- [x] Fase 8 y documento de contexto en la rama `desarrollo` (commit 3d82fdc)
 - [ ] Fase 9: desplegar con HTTPS, obligatorio para el service worker y el push fuera de `localhost`
 - [ ] Fase 9: claves VAPID de producción, `TRUST_PROXY` si hay proxy inverso y `NODE_ENV=production` para la cookie `Secure`
 - [ ] Fase 9: pruebas en un celular real (instalación, cámara, GPS, sin señal y notificaciones)
