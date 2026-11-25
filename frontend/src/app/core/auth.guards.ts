@@ -17,3 +17,9 @@ export const permisoGuard =
   (permiso: Permiso): CanActivateFn =>
   () =>
     inject(Auth).tienePermiso(permiso) || inject(Router).createUrlTree(['/no-autorizado']);
+
+/** Pasa si el usuario tiene al menos uno de los permisos. */
+export const algunPermisoGuard =
+  (...permisos: Permiso[]): CanActivateFn =>
+  () =>
+    permisos.some((p) => inject(Auth).tienePermiso(p)) || inject(Router).createUrlTree(['/no-autorizado']);

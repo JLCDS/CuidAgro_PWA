@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
-import { duplicado, noEncontrado } from './errors.js';
+import { duplicado, duplicadoEn, noEncontrado } from './errors.js';
 import { prisma } from './prisma.js';
 import { puedeAccederFinca } from '../middleware/auth.js';
 
@@ -107,6 +107,21 @@ export async function conDuplicados(mensaje, operacion) {
     if (error?.code === 'P2002') throw duplicado(mensaje);
     throw error;
   }
+}
+
+/** Esquema del `clienteId` (uuid generado por el cliente) que hace idempotentes los registros creados sin conexión. */
+export const clienteIdSchema = z.uuid({ error: 'El identificador del cliente no es válido' }).optional();
+
+/**
+ * Registro ya creado con ese `clienteId`: devuelve su id si es del mismo usuario (el llamador responde 200),
+ * `null` si no existe y lanza 409 si pertenece a otro usuario.
+ */
+export async function idPorClienteId(modelo, actor, clienteId) {
+  if (!clienteId) return null;
+  const previo = await prisma[modelo].findUnique({ where: { clienteId }, select: { id: true, registradoPorId: true } });
+  if (!previo) return null;
+  if (previo.registradoPorId !== actor.id) throw duplicadoEn('clienteId', 'Ese identificador de cliente ya fue usado por otro usuario');
+  return previo.id;
 }
 
 const TABLAS = {

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { fechaNoFuturaSchema, fincaIdSchema, textoOpcional } from '../../lib/registros.js';
+import { clienteIdSchema, fechaNoFuturaSchema, fincaIdSchema, textoOpcional } from '../../lib/registros.js';
 
 export const JORNADAS = ['MANANA', 'TARDE', 'NOCHE'];
 
@@ -22,6 +22,7 @@ export function esquemasConsumo({ campo, maxGramos }) {
     jornada: z.enum(JORNADAS, { error: 'Selecciona la jornada' }),
     fecha: fechaNoFuturaSchema,
     observaciones: textoOpcional(500),
+    clienteId: clienteIdSchema,
   });
   const query = z.object({
     fincaId: fincaIdSchema.optional(),
@@ -32,5 +33,5 @@ export function esquemasConsumo({ campo, maxGramos }) {
     hasta: fechaConsulta.optional(),
   });
   // El animal o lote no cambia al editar.
-  return { create, update: create.omit({ [campo]: true }).partial(), query };
+  return { create, update: create.omit({ [campo]: true, clienteId: true }).partial(), query };
 }

@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { noEncontrado, validacion } from '../../lib/errors.js';
 import { prisma } from '../../lib/prisma.js';
+import { avisarStockMedicamento } from '../../lib/push.js';
 import { filtroFincas, hoyBogota } from '../../lib/registros.js';
 import { aTratamiento, estadoVencimiento, includeTratamiento } from '../../lib/serializers.js';
 
@@ -93,6 +94,7 @@ export async function crearTratamiento(actor, datos) {
   if (sujeto.estado !== 'ACTIVO') throw validacion(campo, `${esVacuno ? 'El vacuno' : 'El lote'} está dado de baja`);
   validar();
 
+  let medicamentoActual;
   const id = await prisma.$transaction(async (tx) => {
     const creado = await tx.tratamiento.create({
       data: {
@@ -104,15 +106,22 @@ export async function crearTratamiento(actor, datos) {
         registradoPorId: actor.id,
       },
     });
-    await tx.medicamento.update({ where: { id: medicamento.id }, data: { stock: { decrement: datos.dosis } } });
+    medicamentoActual = await tx.medicamento.update({ where: { id: medicamento.id }, data: { stock: { decrement: datos.dosis } } });
     return creado.id;
+  });
+  avisarStockMedicamento({
+    medicamento: medicamentoActual,
+    stockAntes: redondear(Number(medicamentoActual.stock) + datos.dosis),
+    autorId: actor.id,
   });
   return aTratamiento(await buscar(prisma, actor, id), hoyBogota());
 }
 
 export async function actualizarTratamiento(actor, id, datos) {
   await buscar(prisma, actor, id);
+  const bajas = [];
   await prisma.$transaction(async (tx) => {
+    bajas.length = 0;
     await bloquear(tx, id);
     const actual = await buscar(tx, actor, id);
 
@@ -138,11 +147,17 @@ export async function actualizarTratamiento(actor, id, datos) {
 
     if (cambiaMedicamento) {
       await tx.medicamento.update({ where: { id: actual.medicamentoId }, data: { stock: { increment: dosisActual } } });
-      await tx.medicamento.update({ where: { id: medicamentoId }, data: { stock: { decrement: dosis } } });
+      const nuevoMed = await tx.medicamento.update({ where: { id: medicamentoId }, data: { stock: { decrement: dosis } } });
+      bajas.push({ medicamento: nuevoMed, descuento: dosis });
     } else if (dosis !== dosisActual) {
-      await tx.medicamento.update({ where: { id: medicamentoId }, data: { stock: { decrement: redondear(dosis - dosisActual) } } });
+      const descuento = redondear(dosis - dosisActual);
+      const nuevoMed = await tx.medicamento.update({ where: { id: medicamentoId }, data: { stock: { decrement: descuento } } });
+      if (descuento > 0) bajas.push({ medicamento: nuevoMed, descuento });
     }
   });
+  for (const { medicamento, descuento } of bajas) {
+    avisarStockMedicamento({ medicamento, stockAntes: redondear(Number(medicamento.stock) + descuento), autorId: actor.id });
+  }
   return aTratamiento(await buscar(prisma, actor, id), hoyBogota());
 }
 

@@ -12,6 +12,7 @@ import { saludRouter } from './modules/salud/salud.routes.js';
 import { medicamentosRouter } from './modules/medicamentos/medicamentos.routes.js';
 import { tratamientosRouter } from './modules/tratamientos/tratamientos.routes.js';
 import { dashboardRouter } from './modules/dashboard/dashboard.routes.js';
+import { pushRouter } from './modules/push/push.routes.js';
 import { reportesRouter } from './modules/reportes/reportes.routes.js';
 import { fincasRouter } from './modules/fincas/fincas.routes.js';
 import { lotesRouter } from './modules/lotes/lotes.routes.js';
@@ -45,6 +46,7 @@ export function createApp({ loginMaxIntentos = env.LOGIN_MAX_INTENTOS } = {}) {
   app.use('/api/tratamientos', tratamientosRouter);
   app.use('/api/dashboard', dashboardRouter);
   app.use('/api/reportes', reportesRouter);
+  app.use('/api/push', pushRouter);
   app.use('/api', notFoundApi);
 
   app.use(errorHandler);

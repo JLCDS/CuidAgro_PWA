@@ -114,7 +114,7 @@ import { NovedadForm } from './novedad-form';
 
     @if (formAbierto()) {
       @if (fincaId(); as id) {
-        <app-novedad-form [fincaId]="id" [novedad]="editando()" (guardado)="alGuardar()" (cerrado)="formAbierto.set(false)" />
+        <app-novedad-form [fincaId]="id" [novedad]="editando()" (guardado)="alGuardar()" (encolado)="alEncolar()" (cerrado)="formAbierto.set(false)" />
       }
     }
 
@@ -244,6 +244,11 @@ export class Novedades {
     this.detalleId.set(null);
     this.editando.set(n);
     this.formAbierto.set(true);
+  }
+
+  protected alEncolar(): void {
+    this.formAbierto.set(false);
+    this.aviso.set('Guardado sin conexión. Se enviará cuando vuelva la señal.');
   }
 
   protected alGuardar(): void {

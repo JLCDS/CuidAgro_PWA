@@ -1,7 +1,8 @@
 import { Prisma } from '@prisma/client';
 import { noEncontrado, prohibido, validacion } from '../../lib/errors.js';
 import { prisma } from '../../lib/prisma.js';
-import { compararNombres, conDuplicados, filtroFincas, hoyBogota } from '../../lib/registros.js';
+import { avisarStockAlimento } from '../../lib/push.js';
+import { compararNombres, conDuplicados, filtroFincas, hoyBogota, idPorClienteId } from '../../lib/registros.js';
 import { tienePermiso } from '../../lib/roles.js';
 import { aConsumo } from '../../lib/serializers.js';
 
@@ -93,7 +94,11 @@ export function servicioConsumos(cfg) {
     return aConsumo(await buscar(prisma, actor, id), relacion);
   }
 
+  /** Devuelve `{ registro, creado }`: `creado` es false si el `clienteId` ya existía (reintento de un envío sin conexión). */
   async function crear(actor, datos) {
+    const previo = await idPorClienteId(modeloConsumo, actor, datos.clienteId);
+    if (previo) return { registro: await obtener(actor, previo), creado: false };
+
     const animal = await prisma[modeloAnimal].findFirst({
       where: { id: datos[campo], ...filtroFincas(actor) },
     });
@@ -103,23 +108,35 @@ export function servicioConsumos(cfg) {
     if (animal.estado !== 'ACTIVO') throw validacion(campo, `${etiqueta === 'Lote' ? 'El lote' : 'El vacuno'} está dado de baja`);
     if (alimento.estado !== 'ACTIVO') throw validacion('alimentoId', 'El alimento está dado de baja');
 
-    const id = await conDuplicados(MENSAJE_DUPLICADO, () =>
-      prisma.$transaction(async (tx) => {
-        const creado = await tx[modeloConsumo].create({ data: { ...datos, registradoPorId: actor.id } });
-        await tx.alimento.update({
-          where: { id: datos.alimentoId },
-          data: { stockGramos: { decrement: datos.cantidadGramos } },
-        });
-        return creado.id;
-      }),
-    );
-    return aConsumo(await buscar(prisma, actor, id), relacion);
+    let id;
+    let alimentoActual;
+    try {
+      ({ id, alimentoActual } = await conDuplicados(MENSAJE_DUPLICADO, () =>
+        prisma.$transaction(async (tx) => {
+          const creado = await tx[modeloConsumo].create({ data: { ...datos, registradoPorId: actor.id } });
+          const actualizado = await tx.alimento.update({
+            where: { id: datos.alimentoId },
+            data: { stockGramos: { decrement: datos.cantidadGramos } },
+          });
+          return { id: creado.id, alimentoActual: actualizado };
+        }),
+      ));
+    } catch (error) {
+      // Carrera: otro envío con el mismo clienteId ganó el índice único. Este responde con el existente.
+      const ganador = error?.status === 409 ? await idPorClienteId(modeloConsumo, actor, datos.clienteId) : null;
+      if (!ganador) throw error;
+      return { registro: await obtener(actor, ganador), creado: false };
+    }
+    avisarStockAlimento({ alimento: alimentoActual, stockAntes: alimentoActual.stockGramos + datos.cantidadGramos, autorId: actor.id });
+    return { registro: aConsumo(await buscar(prisma, actor, id), relacion), creado: true };
   }
 
   async function actualizar(actor, id, datos) {
     await buscar(prisma, actor, id);
+    const bajas = [];
     await conDuplicados(MENSAJE_DUPLICADO, () =>
       prisma.$transaction(async (tx) => {
+        bajas.length = 0;
         await bloquear(tx, id);
         const actual = await buscar(tx, actor, id);
         exigirPermisoSobre(actor, actual);
@@ -137,12 +154,18 @@ export function servicioConsumos(cfg) {
         await tx[modeloConsumo].update({ where: { id }, data: datos });
         if (cambiaAlimento) {
           await tx.alimento.update({ where: { id: actual.alimentoId }, data: { stockGramos: { increment: actual.cantidadGramos } } });
-          await tx.alimento.update({ where: { id: alimentoId }, data: { stockGramos: { decrement: cantidad } } });
+          const nuevo = await tx.alimento.update({ where: { id: alimentoId }, data: { stockGramos: { decrement: cantidad } } });
+          bajas.push({ alimento: nuevo, descuento: cantidad });
         } else if (cantidad !== actual.cantidadGramos) {
-          await tx.alimento.update({ where: { id: alimentoId }, data: { stockGramos: { decrement: cantidad - actual.cantidadGramos } } });
+          const descuento = cantidad - actual.cantidadGramos;
+          const nuevo = await tx.alimento.update({ where: { id: alimentoId }, data: { stockGramos: { decrement: descuento } } });
+          if (descuento > 0) bajas.push({ alimento: nuevo, descuento });
         }
       }),
     );
+    for (const { alimento, descuento } of bajas) {
+      avisarStockAlimento({ alimento, stockAntes: alimento.stockGramos + descuento, autorId: actor.id });
+    }
     return aConsumo(await buscar(prisma, actor, id), relacion);
   }
 

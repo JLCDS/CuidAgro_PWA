@@ -43,7 +43,8 @@ novedadesRouter.post('/', registrar, async (req, res) => {
     cuerpo = sinCamposVacios(req.body);
   }
   const datos = novedadCreateSchema.parse(cuerpo);
-  res.status(201).json(await crearNovedad(req.actor, datos, req.file));
+  const { registro, creado } = await crearNovedad(req.actor, datos, req.file);
+  res.status(creado ? 201 : 200).json(registro);
 });
 
 novedadesRouter.patch('/:id', registrar, async (req, res) => {

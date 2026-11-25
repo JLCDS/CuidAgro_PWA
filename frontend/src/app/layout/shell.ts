@@ -4,7 +4,11 @@ import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } fro
 import { filter, map } from 'rxjs';
 import { Auth } from '../core/auth';
 import { FincaActiva } from '../core/finca-activa';
+import { ColaOffline } from '../core/cola-offline';
 import { etiquetaRol, Permiso } from '../core/modelos';
+import { NotificacionesPush } from '../core/notificaciones-push';
+import { Precarga } from '../core/precarga';
+import { Pwa } from '../core/pwa';
 
 interface ItemMenu {
   ruta: string;
@@ -12,6 +16,8 @@ interface ItemMenu {
   icono: string;
   exacto: boolean;
   permiso?: Permiso;
+  /** Visible si el usuario tiene al menos uno de estos permisos. */
+  algunPermiso?: Permiso[];
 }
 
 const MENU: ItemMenu[] = [
@@ -50,6 +56,13 @@ const MENU: ItemMenu[] = [
     exacto: false,
     permiso: 'novedades:registrar',
     icono: 'M12 9v4M12 17h.01M10.300 3.900L1.800 18a2 2 0 001.700 3h17a2 2 0 001.700-3L13.700 3.900a2 2 0 00-3.400 0z',
+  },
+  {
+    ruta: '/pendientes',
+    etiqueta: 'Pendientes',
+    exacto: false,
+    algunPermiso: ['consumos:registrar', 'novedades:registrar'],
+    icono: 'M12 8v4l3 2M21 12a9 9 0 11-3-6.700M21 4v5h-5',
   },
   {
     ruta: '/salud',
@@ -117,7 +130,33 @@ const MENU: ItemMenu[] = [
             <strong>{{ u.nombre }}</strong>
             <span>{{ rol() }}</span>
           </div>
+          <button type="button" class="btn cuenta" aria-label="Menú de usuario" [attr.aria-expanded]="cuentaAbierta()" (click)="cuentaAbierta.set(!cuentaAbierta())">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8" /></svg>
+          </button>
           <button type="button" class="btn salir" (click)="salir()">Salir</button>
+          @if (cuentaAbierta()) {
+            <div class="menu-cuenta" role="menu">
+              <p class="menu-cuenta-quien"><strong>{{ u.nombre }}</strong><span>{{ rol() }}</span></p>
+              @if (pwa.instalable()) {
+                <button type="button" class="btn" role="menuitem" (click)="instalar()">Instalar app</button>
+              }
+              @if (push.visible()) {
+                @if (push.estado() === 'activo') {
+                  <button type="button" class="btn" role="menuitem" [disabled]="push.trabajando()" (click)="push.desactivar()">Desactivar notificaciones</button>
+                } @else if (push.estado() === 'bloqueado') {
+                  <p class="suave">Notificaciones bloqueadas en el navegador.</p>
+                } @else {
+                  <button type="button" class="btn" role="menuitem" [disabled]="push.trabajando()" (click)="push.activar()">Activar notificaciones</button>
+                }
+                @if (push.error(); as mensaje) {
+                  <p class="error-campo" role="alert">{{ mensaje }}</p>
+                }
+              }
+              @if (!pwa.instalable() && !push.visible()) {
+                <p class="suave">No hay opciones disponibles.</p>
+              }
+            </div>
+          }
         </div>
       }
     </header>
@@ -137,6 +176,9 @@ const MENU: ItemMenu[] = [
               <path [attr.d]="item.icono" />
             </svg>
             {{ item.etiqueta }}
+            @if (item.ruta === '/pendientes' && pendientes() > 0) {
+              <span class="contador" [attr.aria-label]="pendientes() + ' pendientes'">{{ pendientes() }}</span>
+            }
           </a>
         }
         @if (conMas()) {
@@ -146,6 +188,9 @@ const MENU: ItemMenu[] = [
               <path [attr.d]="masAbierto() ? 'M6 6l12 12M18 6L6 18' : 'M5 12h.01M12 12h.01M19 12h.01'" />
             </svg>
             {{ masAbierto() ? 'Cerrar' : 'Más' }}
+            @if (pendientesEnMas() && !masAbierto()) {
+              <span class="contador" aria-label="Hay pendientes">{{ pendientes() }}</span>
+            }
           </button>
         }
       </nav>
@@ -165,6 +210,21 @@ const MENU: ItemMenu[] = [
       flex: 1 1 0; min-width: 0; max-width: 260px; min-height: 44px; padding: 0 8px;
       border: 1px solid rgb(255 255 255 / 50%); border-radius: 10px;
       background: var(--verde-900); color: #fff; font: inherit; font-weight: 600;
+    }
+    .sesion { position: relative; }
+    .cuenta { background: transparent; color: #fff; border-color: rgb(255 255 255 / 50%); min-height: 44px; min-width: 44px; padding: 0 8px; }
+    .cuenta:hover:not(:disabled) { background: var(--verde-900); }
+    .menu-cuenta {
+      position: absolute; right: 0; top: calc(100% + 8px); z-index: 20; width: min(280px, calc(100vw - 32px));
+      display: flex; flex-direction: column; gap: 8px; padding: 12px;
+      background: var(--blanco); color: var(--texto); border: 1px solid var(--borde); border-radius: 12px; box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+    }
+    .menu-cuenta-quien { display: flex; flex-direction: column; line-height: 1.3; }
+    .menu-cuenta-quien span { font-size: 0.85rem; color: var(--texto-suave); }
+    .menu a, .menu .mas { position: relative; }
+    .contador {
+      position: absolute; top: 4px; left: calc(50% + 6px); min-width: 20px; padding: 0 5px; border-radius: 999px;
+      background: var(--peligro); color: #fff; font-size: 0.75rem; line-height: 20px; text-align: center;
     }
     .quien { display: none; text-align: right; line-height: 1.2; }
     .quien span { display: block; font-size: 0.85rem; opacity: 0.85; }
@@ -195,6 +255,7 @@ const MENU: ItemMenu[] = [
       }
       .menu .mas { display: none; }
       .menu a.extra { display: flex; }
+      .contador { position: static; margin-left: auto; }
       .menu a { flex: none; flex-direction: row; justify-content: flex-start; gap: 12px; min-height: 48px; padding: 0 12px; border-radius: 10px; font-size: 1rem; }
     }
   `,
@@ -203,6 +264,16 @@ export class Shell {
   private readonly auth = inject(Auth);
   private readonly router = inject(Router);
   private readonly fincaActiva = inject(FincaActiva);
+  private readonly cola = inject(ColaOffline);
+  protected readonly pwa = inject(Pwa);
+  protected readonly push = inject(NotificacionesPush);
+  protected readonly cuentaAbierta = signal(false);
+  protected readonly pendientes = this.cola.total;
+
+  constructor() {
+    // Mantiene en la caché del service worker los catálogos que usan los formularios sin conexión.
+    inject(Precarga);
+  }
 
   protected readonly fincas = this.fincaActiva.fincas;
   protected readonly fincaId = this.fincaActiva.id;
@@ -214,7 +285,9 @@ export class Shell {
   });
   protected readonly menu = computed(() => {
     this.usuario();
-    return MENU.filter((i) => !i.permiso || this.auth.tienePermiso(i.permiso));
+    return MENU.filter((i) =>
+      i.algunPermiso ? i.algunPermiso.some((p) => this.auth.tienePermiso(p)) : !i.permiso || this.auth.tienePermiso(i.permiso),
+    );
   });
 
   /** En el celular caben 5 botones: si hay más opciones, se muestran 4 y un botón "Más". */
@@ -228,6 +301,9 @@ export class Shell {
     ),
     { initialValue: this.router.url },
   );
+  protected readonly pendientesEnMas = computed(
+    () => this.conMas() && this.pendientes() > 0 && this.menu().findIndex((i) => i.ruta === '/pendientes') >= this.VISIBLES_MOVIL,
+  );
   protected readonly extraActivo = computed(() => {
     const url = this.url().split(/[?#]/)[0];
     return this.menu()
@@ -239,7 +315,21 @@ export class Shell {
     this.fincaActiva.seleccionar(id);
   }
 
-  protected salir(): void {
+  protected async instalar(): Promise<void> {
+    await this.pwa.instalar();
+    this.cuentaAbierta.set(false);
+  }
+
+  protected async salir(): Promise<void> {
+    if (this.pendientes() > 0) {
+      const ok = confirm(
+        `Tienes ${this.pendientes()} registro(s) sin enviar en este dispositivo. Si cierras sesión no se enviarán hasta que vuelvas a entrar. ¿Cerrar sesión de todos modos?`,
+      );
+      if (!ok) return;
+    }
+    this.cuentaAbierta.set(false);
+    // Antes de cerrar la sesión (hace falta el token): este dispositivo deja de recibir avisos del usuario.
+    await this.push.alCerrarSesion();
     this.auth.logout().subscribe(() => void this.router.navigate(['/login']));
   }
 }

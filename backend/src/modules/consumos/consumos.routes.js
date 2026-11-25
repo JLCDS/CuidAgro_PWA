@@ -19,7 +19,8 @@ function routerConsumos(cfg) {
     res.json(await servicio.obtener(req.actor, idConsumo(req.params.id)));
   });
   router.post('/', registrar, async (req, res) => {
-    res.status(201).json(await servicio.crear(req.actor, esquemas.create.parse(req.body)));
+    const { registro, creado } = await servicio.crear(req.actor, esquemas.create.parse(req.body));
+    res.status(creado ? 201 : 200).json(registro);
   });
   router.patch('/:id', registrar, async (req, res) => {
     res.json(await servicio.actualizar(req.actor, idConsumo(req.params.id), esquemas.update.parse(req.body)));

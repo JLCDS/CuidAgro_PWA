@@ -1,8 +1,13 @@
 import { Component, computed, inject, input, OnInit, output, signal } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { AbstractControl, NonNullableFormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
-import { ConsumosApi } from '../core/consumos-api';
+import { Auth } from '../core/auth';
+import { Conexion } from '../core/conexion';
+import { ConsumoGuardar, ConsumosApi } from '../core/consumos-api';
 import { mensajeDeError } from '../core/errores';
+import { nuevoClienteId } from '../core/offline-logica';
+import { Sincronizador } from '../core/sincronizador';
 import {
   Alimento,
   Consumo,
@@ -126,6 +131,9 @@ function noFutura(control: AbstractControl<string>): ValidationErrors | null {
 })
 export class ConsumoForm implements OnInit {
   private readonly api = inject(ConsumosApi);
+  private readonly auth = inject(Auth);
+  private readonly conexion = inject(Conexion);
+  private readonly sincronizador = inject(Sincronizador);
 
   readonly tipo = input.required<TipoConsumo>();
   readonly animales = input<{ id: string; nombre: string }[]>([]);
@@ -133,6 +141,8 @@ export class ConsumoForm implements OnInit {
   /** Si viene, se edita ese consumo; si no, se crea uno nuevo. */
   readonly consumo = input<Consumo | null>(null);
   readonly guardado = output<Consumo>();
+  /** Se guardó en la cola del dispositivo (sin conexión); el servidor lo recibirá al volver la señal. */
+  readonly encolado = output<void>();
   readonly cancelado = output<void>();
 
   protected readonly jornadas = JORNADAS;
@@ -209,9 +219,15 @@ export class ConsumoForm implements OnInit {
       observaciones: v.observaciones,
     };
     const actual = this.consumo();
+    // Un consumo nuevo siempre lleva clienteId: así un reenvío (sin conexión o por red inestable) no lo duplica.
+    const clienteId = nuevoClienteId();
+    if (!actual && !this.conexion.enLinea()) {
+      void this.guardarSinConexion(v.animalId, v.alimentoId, datos, clienteId);
+      return;
+    }
     (actual
       ? this.api.actualizar(this.tipo(), actual.id, datos)
-      : this.api.crear(this.tipo(), v.animalId, datos)
+      : this.api.crear(this.tipo(), v.animalId, { ...datos, clienteId })
     ).subscribe({
       next: (consumo) => {
         this.guardando.set(false);
@@ -223,9 +239,36 @@ export class ConsumoForm implements OnInit {
         this.guardado.emit(consumo);
       },
       error: (error) => {
+        // Falló por red (status 0): se guarda en el dispositivo en vez de perder lo escrito.
+        if (!actual && error instanceof HttpErrorResponse && error.status === 0) {
+          void this.guardarSinConexion(v.animalId, v.alimentoId, datos, clienteId);
+          return;
+        }
         this.error.set(mensajeDeError(error));
         this.guardando.set(false);
       },
     });
+  }
+
+  private async guardarSinConexion(animalId: string, alimentoId: string, datos: ConsumoGuardar, clienteId: string): Promise<void> {
+    const usuarioId = this.auth.usuario()?.id;
+    if (!usuarioId) return;
+    const animal = this.animales().find((a) => a.id === animalId)?.nombre ?? '';
+    const alimento = this.alimentos().find((a) => a.id === alimentoId)?.nombre ?? '';
+    try {
+      await this.sincronizador.encolar({
+        clienteId,
+        tipo: this.tipo() === 'vacunos' ? 'consumo-vacuno' : 'consumo-lote',
+        datos: { ...datos, [this.tipo() === 'vacunos' ? 'vacunoId' : 'loteId']: animalId },
+        resumen: { sujeto: animal, detalle: `${alimento}, ${formatearGramos(datos.cantidadGramos)}` },
+      });
+      this.form.patchValue({ animalId: '', cantidad: null, observaciones: '' });
+      this.form.markAsUntouched();
+      this.encolado.emit();
+    } catch {
+      this.error.set('No se pudo guardar en este dispositivo. Revisa el espacio disponible e intenta de nuevo.');
+    } finally {
+      this.guardando.set(false);
+    }
   }
 }

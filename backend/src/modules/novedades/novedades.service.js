@@ -1,7 +1,8 @@
 import { noEncontrado, prohibido, validacion } from '../../lib/errors.js';
 import { borrarFoto, guardarFoto, leerFoto } from '../../lib/fotos.js';
 import { prisma } from '../../lib/prisma.js';
-import { filtroFincas, hoyBogota, ZONA_HORARIA } from '../../lib/registros.js';
+import { avisarNovedadAlta } from '../../lib/push.js';
+import { filtroFincas, hoyBogota, idPorClienteId, ZONA_HORARIA } from '../../lib/registros.js';
 import { tienePermiso } from '../../lib/roles.js';
 import { aComentario, aNovedad, includeNovedad } from '../../lib/serializers.js';
 
@@ -71,7 +72,11 @@ export async function obtenerNovedad(actor, id) {
   return aNovedad(await buscar(prisma, actor, id, includeDetalle));
 }
 
+/** Devuelve `{ registro, creado }`: `creado` es false si el `clienteId` ya existía (reintento de un envío sin conexión). */
 export async function crearNovedad(actor, datos, archivo) {
+  const previo = await idPorClienteId('novedad', actor, datos.clienteId);
+  if (previo) return { registro: aNovedad(await buscar(prisma, actor, previo)), creado: false };
+
   const esVacuno = Boolean(datos.vacunoId);
   const campo = esVacuno ? 'vacunoId' : 'loteId';
   const sujeto = await (esVacuno ? prisma.vacuno : prisma.loteOviparo).findFirst({
@@ -85,9 +90,16 @@ export async function crearNovedad(actor, datos, archivo) {
     const creada = await prisma.novedad.create({
       data: { ...datos, ...foto, fincaId: sujeto.fincaId, registradoPorId: actor.id },
     });
-    return aNovedad(await buscar(prisma, actor, creada.id));
+    const registro = await buscar(prisma, actor, creada.id);
+    avisarNovedadAlta(registro, actor.id);
+    return { registro: aNovedad(registro), creado: true };
   } catch (error) {
     await borrarFoto(foto.fotoArchivo);
+    // Carrera: otro envío con el mismo clienteId ganó el índice único. Este responde con el existente.
+    if (error?.code === 'P2002' && datos.clienteId) {
+      const ganador = await idPorClienteId('novedad', actor, datos.clienteId);
+      if (ganador) return { registro: aNovedad(await buscar(prisma, actor, ganador)), creado: false };
+    }
     throw error;
   }
 }

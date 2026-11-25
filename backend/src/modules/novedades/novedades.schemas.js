@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { fincaIdSchema } from '../../lib/registros.js';
+import { clienteIdSchema, fincaIdSchema } from '../../lib/registros.js';
 
 export const TIPOS = ['ENFERMEDAD', 'LESION', 'MUERTE', 'COMPORTAMIENTO', 'PRODUCCION', 'INFRAESTRUCTURA', 'OTRO'];
 export const PRIORIDADES = ['BAJA', 'MEDIA', 'ALTA'];
@@ -68,6 +68,7 @@ export const novedadCreateSchema = z
     latitud: latitud.nullable().optional(),
     longitud: longitud.nullable().optional(),
     precisionMetros: precision.nullable().optional(),
+    clienteId: clienteIdSchema,
   })
   .superRefine((datos, ctx) => {
     if (Boolean(datos.vacunoId) === Boolean(datos.loteId)) {

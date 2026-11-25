@@ -1,10 +1,16 @@
 import { Component, computed, DestroyRef, inject, input, OnInit, output, signal } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { FotoNovedad } from '../compartido/foto-novedad';
 import { Modal } from '../compartido/modal';
+import { Auth } from '../core/auth';
+import { Conexion } from '../core/conexion';
 import { mensajeDeError } from '../core/errores';
 import { reducirImagen } from '../core/imagen';
 import { LotesApi } from '../core/lotes-api';
+import { etiquetaDe } from '../core/modelos';
+import { nuevoClienteId } from '../core/offline-logica';
+import { Sincronizador } from '../core/sincronizador';
 import { NovedadCrear, NovedadesApi } from '../core/novedades-api';
 import {
   erroresPorCampo,
@@ -153,6 +159,9 @@ interface Ubicacion {
 })
 export class NovedadForm implements OnInit {
   private readonly api = inject(NovedadesApi);
+  private readonly auth = inject(Auth);
+  private readonly conexion = inject(Conexion);
+  private readonly sincronizador = inject(Sincronizador);
   private readonly vacunosApi = inject(VacunosApi);
   private readonly lotesApi = inject(LotesApi);
 
@@ -160,6 +169,8 @@ export class NovedadForm implements OnInit {
   /** Si viene, se edita; si no, se crea. */
   readonly novedad = input<Novedad | null>(null);
   readonly guardado = output<Novedad>();
+  /** Se guardó en la cola del dispositivo (sin conexión); el servidor la recibirá al volver la señal. */
+  readonly encolado = output<void>();
   readonly cerrado = output<void>();
 
   protected readonly tipos = TIPOS_NOVEDAD;
@@ -344,7 +355,43 @@ export class NovedadForm implements OnInit {
       prioridad: v.prioridad,
       descripcion: v.descripcion.trim(),
       ...(ubic ?? {}),
+      // clienteId evita duplicados al reenviar; fechaHora conserva el momento en que se capturó la novedad.
+      clienteId: nuevoClienteId(),
+      fechaHora: new Date().toISOString(),
     };
-    this.api.crear(datos, this.foto()).subscribe({ next: terminar, error: alFallar });
+    if (!this.conexion.enLinea()) {
+      void this.guardarSinConexion(datos);
+      return;
+    }
+    this.api.crear(datos, this.foto()).subscribe({
+      next: terminar,
+      error: (e) => {
+        // Falló por red (status 0): se guarda en el dispositivo en vez de perder lo escrito.
+        if (e instanceof HttpErrorResponse && e.status === 0) void this.guardarSinConexion(datos);
+        else alFallar(e);
+      },
+    });
+  }
+
+  /** Foto (ya reducida) y ubicación ya capturadas se guardan tal cual en la cola de IndexedDB. */
+  private async guardarSinConexion(datos: NovedadCrear): Promise<void> {
+    const usuarioId = this.auth.usuario()?.id;
+    if (!usuarioId || !datos.clienteId) return;
+    const sujetoId = datos.loteId ?? datos.vacunoId;
+    const nombre = this.opciones().find((o) => o.id === sujetoId)?.nombre ?? '';
+    try {
+      await this.sincronizador.encolar({
+        clienteId: datos.clienteId,
+        tipo: 'novedad',
+        datos: { ...datos },
+        foto: this.foto(),
+        resumen: { sujeto: nombre, detalle: `${etiquetaDe(TIPOS_NOVEDAD, datos.tipo)}, prioridad ${etiquetaDe(PRIORIDADES_NOVEDAD, datos.prioridad).toLowerCase()}` },
+      });
+      this.guardando.set(false);
+      this.encolado.emit();
+    } catch {
+      this.error.set('No se pudo guardar en este dispositivo. Revisa el espacio disponible e intenta de nuevo.');
+      this.guardando.set(false);
+    }
   }
 }

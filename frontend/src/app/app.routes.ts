@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { autenticadoGuard, invitadoGuard, permisoGuard } from './core/auth.guards';
+import { algunPermisoGuard, autenticadoGuard, invitadoGuard, permisoGuard } from './core/auth.guards';
 
 export const routes: Routes = [
   {
@@ -54,6 +54,12 @@ export const routes: Routes = [
         title: 'Novedades · CuidAgro',
         canActivate: [permisoGuard('novedades:registrar')],
         loadComponent: () => import('./paginas/novedades').then((m) => m.Novedades),
+      },
+      {
+        path: 'pendientes',
+        title: 'Pendientes · CuidAgro',
+        canActivate: [algunPermisoGuard('consumos:registrar', 'novedades:registrar')],
+        loadComponent: () => import('./paginas/pendientes').then((m) => m.Pendientes),
       },
       {
         path: 'salud',

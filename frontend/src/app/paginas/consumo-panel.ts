@@ -33,7 +33,7 @@ import { ConsumoForm } from './consumo-form';
           {{ a.mensaje }}
         </p>
       }
-      <app-consumo-form [tipo]="tipo()" [animales]="animales()" [alimentos]="alimentos()" (guardado)="alGuardar($event)" />
+      <app-consumo-form [tipo]="tipo()" [animales]="animales()" [alimentos]="alimentos()" (guardado)="alGuardar($event)" (encolado)="alEncolar()" />
     </section>
 
     <h2 class="titulo-lista">Consumos registrados</h2>
@@ -259,6 +259,10 @@ export class ConsumoPanel {
     this.alerta.set(this.alertaDe(consumo, 'registrado'));
     this.recargarAlimentos(this.fincaId());
     this.recarga$.next();
+  }
+
+  protected alEncolar(): void {
+    this.alerta.set({ tipo: 'ok', mensaje: 'Guardado sin conexión. Se enviará cuando vuelva la señal.' });
   }
 
   protected alEditar(consumo: Consumo): void {

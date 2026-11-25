@@ -23,6 +23,10 @@ export interface NovedadCrear {
   latitud?: number;
   longitud?: number;
   precisionMetros?: number;
+  /** Identificador generado en el cliente (idempotencia). */
+  clienteId?: string;
+  /** Momento en que se capturó (ISO); si se registró sin conexión, no es la hora del envío. */
+  fechaHora?: string;
 }
 
 export interface NovedadEditar {

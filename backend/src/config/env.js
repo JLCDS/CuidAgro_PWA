@@ -16,6 +16,10 @@ const esquema = z.object({
   CORS_ORIGIN: z.string().default(''),
   TRUST_PROXY: z.coerce.number().int().min(0).default(0),
   LOGIN_MAX_INTENTOS: z.coerce.number().int().positive().default(10),
+  // Notificaciones push (opcionales). Sin las dos claves VAPID el push queda deshabilitado.
+  VAPID_PUBLIC_KEY: z.string().trim().optional(),
+  VAPID_PRIVATE_KEY: z.string().trim().optional(),
+  VAPID_SUBJECT: z.string().trim().min(1).default('mailto:admin@cuidagro.local'),
   // Fotos de novedades. Una ruta relativa se resuelve desde el directorio backend/.
   UPLOADS_DIR: z
     .string()

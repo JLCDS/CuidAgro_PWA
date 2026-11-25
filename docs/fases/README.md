@@ -4,6 +4,8 @@ Un archivo por cada fase del desarrollo de CuidAgro. Sirve para retomar el traba
 
 Se crea o actualiza al cerrar cada fase. El código y las pruebas siguen siendo la fuente de verdad; aquí va lo que no se deduce de ellos.
 
+Visión general del proyecto completo (HU oficiales, arquitectura, seguridad, PWA, forma de trabajo y resultados de QA): [../contexto-proyecto.md](../contexto-proyecto.md).
+
 | Fase | Historias | Estado | Contexto |
 |---|---|---|---|
 | 1. Análisis y configuración | — | Terminada | [fase-01-configuracion.md](fase-01-configuracion.md) |
@@ -13,7 +15,7 @@ Se crea o actualiza al cerrar cada fase. El código y las pruebas siguen siendo 
 | 5. Salud y novedades | HU012 a HU015 | Terminada, en revisión | [fase-05-salud-novedades.md](fase-05-salud-novedades.md) |
 | 6. Medicamentos y tratamientos | HU016, HU017 | Terminada, en revisión | [fase-06-medicamentos-tratamientos.md](fase-06-medicamentos-tratamientos.md) |
 | 7. Dashboard y reportes | HU018, HU019 | Terminada, en revisión | [fase-07-dashboard-reportes.md](fase-07-dashboard-reportes.md) |
-| 8. PWA y offline | HU020, HU021 | Pendiente | — |
+| 8. PWA y offline | HU020, HU021 | Terminada, en revisión | [fase-08-pwa-offline.md](fase-08-pwa-offline.md) |
 | 9. Pruebas y despliegue | — | Pendiente | — |
 
 ## Decisiones abiertas

@@ -18,6 +18,8 @@ export interface ConsumoGuardar {
   jornada: Jornada;
   fecha: string;
   observaciones: string;
+  /** Identificador generado en el cliente: el servidor no duplica un registro con el mismo valor. */
+  clienteId?: string;
 }
 
 @Injectable({ providedIn: 'root' })
