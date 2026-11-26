@@ -15,7 +15,7 @@ import { mensajeDeError } from '../core/errores';
       </picture>
 
       <div class="marca">
-        <img src="icono.svg" alt="" width="52" height="52" />
+        <img src="img/logo.webp" alt="" width="64" height="64" />
         <div>
           <h1>CuidAgro</h1>
           <p>Cuidado y seguimiento de tus animales</p>

@@ -114,7 +114,7 @@ const MENU: ItemMenu[] = [
   template: `
     <header class="barra">
       <a routerLink="/" class="marca">
-        <img src="icono.svg" alt="" width="32" height="32" />
+        <img src="img/logo.webp" alt="" width="38" height="38" />
         CuidAgro
       </a>
       @if (fincas().length > 1) {
