@@ -16,10 +16,13 @@ import { GraficoBarras } from './grafico-barras';
     @if (auth.usuario(); as u) {
       <div class="pila">
         <div class="cabecera-pagina">
-          <div>
-            <h1>Hola, {{ u.nombre }}</h1>
-            <p class="suave">{{ rol() }}@if (panel(); as p) { · {{ p.finca.nombre }} }</p>
-          </div>
+          <header class="portada">
+            <img src="img/cabecera-inicio.webp" alt="" width="1600" height="533" decoding="async" />
+            <div class="saludo">
+              <h1>Hola, {{ u.nombre }}</h1>
+              <p>{{ rol() }}@if (panel(); as p) { · {{ p.finca.nombre }} }</p>
+            </div>
+          </header>
           <div class="acciones">
             @if (puedeConsumo()) {
               <a routerLink="/consumos" class="btn btn-primario">Registrar consumo</a>
@@ -32,6 +35,7 @@ import { GraficoBarras } from './grafico-barras';
 
         @if (!fincaId()) {
           <div class="vacio">
+            <img class="vacio-escena" src="img/finca.webp" alt="" width="720" height="540" loading="lazy" />
             Aún no hay una finca para trabajar.
             @if (u.rol === 'ADMINISTRADOR') {
               <a routerLink="/fincas">Crea una finca</a> para ver el panel.
@@ -164,7 +168,23 @@ import { GraficoBarras } from './grafico-barras';
     }
   `,
   styles: `
-    h1 { margin-bottom: 0; }
+    .cabecera-pagina { display: grid; justify-content: stretch; margin-bottom: 0; }
+    .portada {
+      position: relative; isolation: isolate; overflow: hidden; display: flex; align-items: flex-end;
+      min-height: 168px; padding: 18px; border-radius: var(--radio); background: var(--verde-900);
+    }
+    .portada img { position: absolute; inset: 0; z-index: -1; width: 100%; height: 100%; object-fit: cover; object-position: 62% 40%; }
+    .portada::after {
+      content: ''; position: absolute; inset: 0; z-index: -1;
+      background: linear-gradient(0deg, rgb(20 46 27 / 82%) 0%, rgb(20 46 27 / 30%) 55%, rgb(20 46 27 / 0%) 100%);
+    }
+    .saludo { color: #fff; text-shadow: 0 1px 10px rgb(0 0 0 / 30%); }
+    .saludo h1 { margin-bottom: 0; color: #fff; }
+    .saludo p { opacity: 0.92; }
+    @media (min-width: 720px) {
+      .portada { min-height: 220px; padding: 24px 28px; }
+      .saludo h1 { font-size: 1.9rem; }
+    }
     .indicadores { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
     .indicador {
       display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 14px;

@@ -234,6 +234,25 @@ textarea.input {
   text-align: center;
 }
 
+/* Ilustración del estado vacío: objeto recortado sobre crema, o escena de la finca. */
+.vacio > img {
+  display: block;
+  margin: 0 auto 14px;
+  height: auto;
+}
+
+/* Bordes difuminados: el fondo crema de la foto se funde con el de la página. */
+.vacio-objeto {
+  width: 156px;
+  -webkit-mask-image: radial-gradient(closest-side, #000 72%, transparent 100%);
+  mask-image: radial-gradient(closest-side, #000 72%, transparent 100%);
+}
+
+.vacio-escena {
+  width: min(100%, 360px);
+  border-radius: 10px;
+}
+
 .insignia {
   display: inline-block;
   padding: 2px 10px;
@@ -439,4 +458,8 @@ textarea.input {
   body {
     background: #fff;
   }
+}
+
+.vacio-cuadrada {
+  width: 200px;
 }

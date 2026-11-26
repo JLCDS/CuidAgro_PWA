@@ -73,7 +73,7 @@ import { ConsumoForm } from './consumo-form';
     @if (cargando()) {
       <p class="suave" role="status">Cargando…</p>
     } @else if (consumos().length === 0 && !error()) {
-      <div class="vacio">No hay consumos en el período seleccionado.</div>
+      <div class="vacio"><img class="vacio-objeto" src="img/vacio-alimentos.webp" alt="" width="320" height="320" loading="lazy" />No hay consumos en el período seleccionado.</div>
     } @else if (consumos().length > 0) {
       <table class="tabla">
         <thead>

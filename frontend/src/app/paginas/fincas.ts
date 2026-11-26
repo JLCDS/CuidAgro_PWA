@@ -22,7 +22,7 @@ import { Finca } from '../core/modelos';
     @if (cargando()) {
       <p class="suave" role="status">Cargando…</p>
     } @else if (fincas().length === 0 && !error()) {
-      <div class="vacio">Aún no hay fincas. Crea la primera para poder asignarle usuarios.</div>
+      <div class="vacio"><img class="vacio-escena" src="img/finca.webp" alt="" width="720" height="540" loading="lazy" />Aún no hay fincas. Crea la primera para poder asignarle usuarios.</div>
     } @else {
       <div class="rejilla">
         @for (finca of fincas(); track finca.id) {

@@ -25,6 +25,7 @@ import { MovimientosDialogo } from './movimientos-dialogo';
 
     @if (!fincaId()) {
       <div class="vacio">
+        <img class="vacio-escena" src="img/finca.webp" alt="" width="720" height="540" loading="lazy" />
         Aún no hay una finca para trabajar.
         @if (puedeCrearFincas()) {
           <a routerLink="/fincas">Crea una finca</a> primero.
@@ -61,7 +62,7 @@ import { MovimientosDialogo } from './movimientos-dialogo';
       @if (cargando()) {
         <p class="suave" role="status">Cargando…</p>
       } @else if (alimentos().length === 0 && !error()) {
-        <div class="vacio">No hay alimentos que coincidan con la búsqueda.</div>
+        <div class="vacio"><img class="vacio-objeto" src="img/vacio-alimentos.webp" alt="" width="320" height="320" loading="lazy" />No hay alimentos que coincidan con la búsqueda.</div>
       } @else if (alimentos().length > 0) {
         <table class="tabla">
           <thead>

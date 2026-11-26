@@ -36,6 +36,7 @@ import { NovedadForm } from './novedad-form';
 
     @if (!fincaId()) {
       <div class="vacio">
+        <img class="vacio-escena" src="img/finca.webp" alt="" width="720" height="540" loading="lazy" />
         Aún no hay una finca para trabajar.
         @if (puedeCrearFincas()) {
           <a routerLink="/fincas">Crea una finca</a> primero.
@@ -80,7 +81,7 @@ import { NovedadForm } from './novedad-form';
       @if (cargando()) {
         <p class="suave" role="status">Cargando…</p>
       } @else if (novedades().length === 0 && !error()) {
-        <div class="vacio">No hay novedades con estos filtros.</div>
+        <div class="vacio"><img class="vacio-objeto" src="img/vacio-novedades.webp" alt="" width="320" height="320" loading="lazy" />No hay novedades con estos filtros.</div>
       } @else {
         <ul class="tarjetas">
           @for (n of novedades(); track n.id) {

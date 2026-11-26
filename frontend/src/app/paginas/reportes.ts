@@ -40,7 +40,8 @@ type Campo = 'desde' | 'hasta' | 'agrupacion' | 'sujeto' | 'vacunoId' | 'loteId'
     </div>
 
     @if (!fincaId()) {
-      <div class="vacio">Aún no hay una finca para trabajar. <a routerLink="/fincas">Crea una finca</a> primero.</div>
+      <div class="vacio">
+        <img class="vacio-escena" src="img/finca.webp" alt="" width="720" height="540" loading="lazy" /> Aún no hay una finca para trabajar. <a routerLink="/fincas">Crea una finca</a> primero.</div>
     } @else {
       <form class="tarjeta pila no-imprimir" (submit)="consultar($event)" novalidate>
         <div class="atajos" role="group" aria-label="Atajos de rango">
@@ -156,7 +157,7 @@ type Campo = 'desde' | 'hasta' | 'agrupacion' | 'sujeto' | 'vacunoId' | 'loteId'
         </section>
 
         @if (r.filas.length === 0) {
-          <div class="vacio">No hay consumos registrados con estos filtros.</div>
+          <div class="vacio"><img class="vacio-objeto" src="img/vacio-reportes.webp" alt="" width="320" height="320" loading="lazy" />No hay consumos registrados con estos filtros.</div>
         } @else {
           <table class="tabla">
             <thead>

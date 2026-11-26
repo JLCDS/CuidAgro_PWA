@@ -9,15 +9,21 @@ import { mensajeDeError } from '../core/errores';
   imports: [ReactiveFormsModule],
   template: `
     <main class="fondo">
-      <section class="panel">
-        <div class="marca">
-          <img src="icono.svg" alt="" width="52" height="52" />
-          <div>
-            <h1>CuidAgro</h1>
-            <p class="suave">Cuidado y seguimiento de tus animales</p>
-          </div>
-        </div>
+      <picture class="foto" aria-hidden="true">
+        <source media="(min-width: 760px)" srcset="img/login-computador.webp" />
+        <img src="img/login-movil.webp" alt="" fetchpriority="high" decoding="async" />
+      </picture>
 
+      <div class="marca">
+        <img src="icono.svg" alt="" width="52" height="52" />
+        <div>
+          <h1>CuidAgro</h1>
+          <p>Cuidado y seguimiento de tus animales</p>
+        </div>
+      </div>
+
+      <section class="panel" aria-labelledby="titulo-entrar">
+        <h2 id="titulo-entrar">Entra a tu finca</h2>
         <form [formGroup]="form" (ngSubmit)="entrar()" class="pila" novalidate>
           @if (error(); as mensaje) {
             <p class="alerta" role="alert">{{ mensaje }}</p>
@@ -49,16 +55,46 @@ import { mensajeDeError } from '../core/errores';
     </main>
   `,
   styles: `
+    /* Celular: la foto llena la pantalla, la marca arriba y el formulario como hoja apoyada abajo. */
     .fondo {
-      display: grid; place-items: center; min-height: 100dvh; padding: 16px;
-      background: linear-gradient(180deg, var(--verde-700) 0 38%, var(--crema) 38%);
+      position: relative; isolation: isolate; min-height: 100dvh;
+      display: grid; grid-template-rows: auto 1fr auto;
+      background: var(--verde-900);
     }
+    .foto, .foto img { position: absolute; inset: 0; width: 100%; height: 100%; }
+    .foto { z-index: -1; }
+    .foto img { object-fit: cover; object-position: 50% 30%; }
+    /* Velo verde arriba para leer la marca; el resto de la foto queda limpia. */
+    .fondo::after {
+      content: ''; position: absolute; inset: 0 0 auto; height: 42%; z-index: -1;
+      background: linear-gradient(180deg, rgb(20 46 27 / 90%) 0%, rgb(20 46 27 / 70%) 40%, rgb(20 46 27 / 0%) 100%);
+    }
+    .marca {
+      display: flex; align-items: center; gap: 14px; padding: 28px 20px 0;
+      color: #fff; text-shadow: 0 1px 12px rgb(0 0 0 / 35%);
+    }
+    .marca img { border-radius: 12px; box-shadow: 0 2px 10px rgb(0 0 0 / 25%); }
+    .marca h1 { color: #fff; font-size: 1.9rem; letter-spacing: -0.01em; }
+    .marca p { opacity: 0.92; }
     .panel {
-      display: grid; gap: 24px; width: min(420px, 100%); padding: 28px 24px;
-      background: var(--blanco); border-radius: 16px; box-shadow: 0 12px 40px rgb(30 40 20 / 22%);
+      grid-row: 3; display: grid; gap: 20px; padding: 24px 20px calc(24px + env(safe-area-inset-bottom));
+      background: var(--blanco); border-radius: 20px 20px 0 0;
+      box-shadow: 0 -8px 32px rgb(20 30 15 / 28%);
     }
-    .marca { display: flex; align-items: center; gap: 14px; }
-    .marca img { border-radius: 12px; }
+    /* Computador: la escena a la izquierda y el formulario en la zona desenfocada de la derecha. */
+    @media (min-width: 760px) {
+      .fondo { grid-template-columns: 1fr minmax(360px, 420px); grid-template-rows: auto 1fr; padding: 0 6vw 0 0; }
+      .fondo::after {
+        inset: 0; height: auto;
+        background:
+          linear-gradient(180deg, rgb(20 46 27 / 85%) 0%, rgb(20 46 27 / 0%) 34%),
+          linear-gradient(90deg, rgb(20 46 27 / 45%) 0%, rgb(20 46 27 / 0%) 50%);
+      }
+      .foto img { object-position: 30% 50%; }
+      .marca { grid-column: 1; align-self: start; padding: 40px 48px 0; }
+      .marca h1 { font-size: 2.4rem; }
+      .panel { grid-column: 2; grid-row: 1 / span 2; align-self: center; padding: 32px 28px; border-radius: 16px; box-shadow: 0 16px 48px rgb(20 30 15 / 35%); }
+    }
   `,
 })
 export class Login {

@@ -21,7 +21,7 @@ import { Sincronizador } from '../core/sincronizador';
     }
 
     @if (elementos().length === 0) {
-      <div class="vacio">No hay registros pendientes.</div>
+      <div class="vacio"><img class="vacio-escena vacio-cuadrada" src="img/vacio-pendientes.webp" alt="" width="320" height="320" loading="lazy" />Todo está sincronizado: no hay registros pendientes.</div>
     } @else {
       <table class="tabla">
         <thead>

@@ -26,6 +26,7 @@ import { ConsumoPanel } from './consumo-panel';
       }
     } @else {
       <div class="vacio">
+        <img class="vacio-escena" src="img/finca.webp" alt="" width="720" height="540" loading="lazy" />
         Aún no hay una finca para trabajar.
         @if (puedeCrearFincas()) {
           <a routerLink="/fincas">Crea una finca</a> primero.

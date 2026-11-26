@@ -8,3 +8,6 @@ coverage/
 uploads/
 .DS_Store
 
+
+# Imágenes originales (PNG grandes); a la app solo van las versiones WebP de frontend/public/img.
+frontend/img/
