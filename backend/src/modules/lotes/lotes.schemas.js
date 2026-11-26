@@ -32,6 +32,7 @@ const campos = z.object({
   proposito: z.enum(PROPOSITOS, { error: 'Selecciona el propósito' }),
   fechaIngreso: fechaNoFuturaSchema.nullable().optional(),
   observaciones: textoOpcional(1000),
+  espacioId: z.uuid({ error: 'Selecciona un espacio válido' }).nullable().optional(),
 });
 
 const rangoValido = (l) =>
@@ -42,4 +43,4 @@ export const loteCreateSchema = campos.refine(rangoValido, rango);
 // La finca no se cambia al editar. Si solo llega un extremo del rango, el servicio lo valida contra el guardado.
 export const loteUpdateSchema = campos.omit({ fincaId: true }).partial().refine(rangoValido, rango);
 export const loteEstadoSchema = estadoCambioSchema;
-export const lotesQuerySchema = listadoQuerySchema(PROPOSITOS);
+export const lotesQuerySchema = listadoQuerySchema(PROPOSITOS).extend({ espacioId: z.uuid().optional() });

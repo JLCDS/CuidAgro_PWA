@@ -1,7 +1,8 @@
 import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
-import { Alimento, formatearFecha, hoyBogota, Lote, Vacuno } from '../core/modelos';
+import { Alimento, Espacio, formatearFecha, hoyBogota, Lote, Vacuno } from '../core/modelos';
+import { EspaciosApi } from '../core/espacios-api';
 import { AlimentosApi } from '../core/alimentos-api';
 import { mensajeDeError } from '../core/errores';
 import { FincaActiva } from '../core/finca-activa';
@@ -25,7 +26,7 @@ import {
 import { VacunosApi } from '../core/vacunos-api';
 import { GraficoBarras } from './grafico-barras';
 
-type Campo = 'desde' | 'hasta' | 'agrupacion' | 'sujeto' | 'vacunoId' | 'loteId' | 'alimentoId' | 'desglose';
+type Campo = 'desde' | 'hasta' | 'agrupacion' | 'sujeto' | 'vacunoId' | 'loteId' | 'espacioId' | 'alimentoId' | 'desglose';
 
 @Component({
   selector: 'app-reportes',
@@ -104,6 +105,18 @@ type Campo = 'desde' | 'hasta' | 'agrupacion' | 'sujeto' | 'vacunoId' | 'loteId'
               @if (errores().loteId; as m) { <span class="error-campo">{{ m }}</span> }
             </div>
           }
+          @if (sujeto() === 'LOTES') {
+            <div class="campo">
+              <label for="rep-espacio">Espacio</label>
+              <select id="rep-espacio" class="input" [value]="espacioId()" (change)="espacioId.set($any($event.target).value)">
+                <option value="">Todos</option>
+                @for (e of espacios(); track e.id) {
+                  <option [value]="e.id" [selected]="e.id === espacioId()">{{ e.codigo }}@if (e.estado === 'INACTIVO') { (de baja) }</option>
+                }
+              </select>
+              @if (errores().espacioId; as m) { <span class="error-campo">{{ m }}</span> }
+            </div>
+          }
           <div class="campo">
             <label for="rep-alimento">Alimento</label>
             <select id="rep-alimento" class="input" [value]="alimentoId()" (change)="alimentoId.set($any($event.target).value)">
@@ -119,6 +132,9 @@ type Campo = 'desde' | 'hasta' | 'agrupacion' | 'sujeto' | 'vacunoId' | 'loteId'
             <select id="rep-desglose" class="input" [value]="desglose()" (change)="desglose.set($any($event.target).value)">
               <option value="SUJETO">Por animal o lote</option>
               <option value="ALIMENTO">Por animal o lote y alimento</option>
+              @if (sujeto() === 'LOTES') {
+                <option value="ESPACIO">Por espacio (cuadrante o zona)</option>
+              }
               <option value="NINGUNO">Solo el total del periodo</option>
             </select>
             @if (errores().desglose; as m) { <span class="error-campo">{{ m }}</span> }
@@ -141,7 +157,7 @@ type Campo = 'desde' | 'hasta' | 'agrupacion' | 'sujeto' | 'vacunoId' | 'loteId'
         <section class="resumen" aria-label="Totales">
           <div class="tarjeta"><span class="cifra">{{ peso(r.totales.gramos) }}</span><span class="etiqueta">Total consumido</span></div>
           <div class="tarjeta"><span class="cifra">{{ r.totales.registros }}</span><span class="etiqueta">Registros</span></div>
-          <div class="tarjeta"><span class="cifra">{{ r.totales.sujetos }}</span><span class="etiqueta">Animales o lotes</span></div>
+          <div class="tarjeta"><span class="cifra">{{ r.totales.sujetos }}</span><span class="etiqueta">{{ r.parametros.desglose === 'ESPACIO' ? 'Espacios' : 'Animales o lotes' }}</span></div>
           <div class="tarjeta">
             <span class="cifra">{{ peso(r.totales.promedioGramosPorPeriodo) }}</span>
             <span class="etiqueta">Promedio por {{ r.parametros.agrupacion === 'MES' ? 'mes' : 'día' }}</span>
@@ -163,7 +179,7 @@ type Campo = 'desde' | 'hasta' | 'agrupacion' | 'sujeto' | 'vacunoId' | 'loteId'
             <thead>
               <tr>
                 <th>Periodo</th>
-                @if (r.parametros.desglose !== 'NINGUNO') { <th>Animal o lote</th> }
+                @if (r.parametros.desglose !== 'NINGUNO') { <th>{{ r.parametros.desglose === 'ESPACIO' ? 'Espacio' : 'Animal o lote' }}</th> }
                 @if (r.parametros.desglose === 'ALIMENTO') { <th>Alimento</th> }
                 <th>Cantidad</th>
                 <th>Registros</th>
@@ -174,7 +190,7 @@ type Campo = 'desde' | 'hasta' | 'agrupacion' | 'sujeto' | 'vacunoId' | 'loteId'
                 <tr>
                   <td data-etiqueta="Periodo">{{ periodo(f.periodo) }}</td>
                   @if (r.parametros.desglose !== 'NINGUNO') {
-                    <td data-etiqueta="Animal o lote">{{ f.sujeto?.nombre }} <span class="suave">({{ f.sujeto?.tipo === 'LOTE' ? 'lote' : 'vacuno' }})</span></td>
+                    <td [attr.data-etiqueta]="r.parametros.desglose === 'ESPACIO' ? 'Espacio' : 'Animal o lote'">{{ f.sujeto?.nombre }} <span class="suave">({{ tipoSujeto(f.sujeto?.tipo) }})</span></td>
                   }
                   @if (r.parametros.desglose === 'ALIMENTO') { <td data-etiqueta="Alimento">{{ f.alimento?.nombre }}</td> }
                   <td data-etiqueta="Cantidad">{{ peso(f.gramos) }}</td>
@@ -217,12 +233,16 @@ export class Reportes {
   private readonly fincaActiva = inject(FincaActiva);
   private readonly vacunosApi = inject(VacunosApi);
   private readonly lotesApi = inject(LotesApi);
+  private readonly espaciosApi = inject(EspaciosApi);
   private readonly alimentosApi = inject(AlimentosApi);
 
   protected readonly atajos = ATAJOS_RANGO;
   protected readonly peso = formatearPeso;
   protected readonly periodo = etiquetaPeriodo;
   protected readonly fecha = formatearFecha;
+  protected tipoSujeto(tipo: 'VACUNO' | 'LOTE' | 'ESPACIO' | undefined): string {
+    return tipo === 'LOTE' ? 'lote' : tipo === 'ESPACIO' ? 'espacio' : 'vacuno';
+  }
 
   protected readonly fincaId = this.fincaActiva.id;
   protected readonly fincaNombre = computed(() => this.fincaActiva.fincas().find((f) => f.id === this.fincaId())?.nombre ?? '');
@@ -233,11 +253,13 @@ export class Reportes {
   protected readonly sujeto = signal<SujetoReporte>('TODOS');
   protected readonly vacunoId = signal('');
   protected readonly loteId = signal('');
+  protected readonly espacioId = signal('');
   protected readonly alimentoId = signal('');
   protected readonly desglose = signal<Desglose>('SUJETO');
 
   protected readonly vacunos = signal<Vacuno[]>([]);
   protected readonly lotes = signal<Lote[]>([]);
+  protected readonly espacios = signal<Espacio[]>([]);
   protected readonly alimentos = signal<Alimento[]>([]);
 
   protected readonly reporte = signal<ReporteConsumos | null>(null);
@@ -265,8 +287,10 @@ export class Reportes {
         this.reporte.set(null);
         this.vacunoId.set('');
         this.loteId.set('');
+        this.espacioId.set('');
         this.alimentoId.set('');
         if (!id) return;
+        this.espaciosApi.listar({ fincaId: id }).subscribe({ next: (r) => this.espacios.set(r.datos), error: () => undefined });
         this.vacunosApi.listar({ fincaId: id, estado: 'TODOS', q: '', proposito: '' }).subscribe({ next: (l) => this.vacunos.set(l), error: () => undefined });
         this.lotesApi.listar({ fincaId: id, estado: 'TODOS', q: '', proposito: '' }).subscribe({ next: (l) => this.lotes.set(l), error: () => undefined });
         this.alimentosApi.listar({ fincaId: id, estado: 'TODOS', q: '', tipo: '', bajoStock: false }).subscribe({ next: (l) => this.alimentos.set(l), error: () => undefined });
@@ -286,6 +310,11 @@ export class Reportes {
     this.sujeto.set(valor);
     if (valor === 'LOTES') this.vacunoId.set('');
     if (valor === 'VACUNOS') this.loteId.set('');
+    if (valor !== 'LOTES') {
+      // El filtro y el desglose por espacio solo existen para lotes.
+      this.espacioId.set('');
+      if (this.desglose() === 'ESPACIO') this.desglose.set('SUJETO');
+    }
   }
 
   protected consultar(evento: Event): void {
@@ -309,6 +338,7 @@ export class Reportes {
       sujeto: this.sujeto(),
       vacunoId: this.vacunoId(),
       loteId: this.loteId(),
+      espacioId: this.sujeto() === 'LOTES' ? this.espacioId() : '',
       alimentoId: this.alimentoId(),
       desglose: this.desglose(),
     };

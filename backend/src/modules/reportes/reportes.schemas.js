@@ -21,10 +21,17 @@ export const consumosQuerySchema = z
     sujeto: z.enum(['VACUNOS', 'LOTES', 'TODOS'], { error: 'Sujeto inválido' }).default('TODOS'),
     vacunoId: z.uuid({ error: 'Vacuno inválido' }).optional(),
     loteId: z.uuid({ error: 'Lote inválido' }).optional(),
+    espacioId: z.uuid({ error: 'Espacio inválido' }).optional(),
     alimentoId: z.uuid({ error: 'Alimento inválido' }).optional(),
-    desglose: z.enum(['SUJETO', 'ALIMENTO', 'NINGUNO'], { error: 'Desglose inválido' }).default('SUJETO'),
+    desglose: z.enum(['SUJETO', 'ALIMENTO', 'ESPACIO', 'NINGUNO'], { error: 'Desglose inválido' }).default('SUJETO'),
   })
   .superRefine((q, ctx) => {
+    if (q.espacioId && (q.sujeto === 'VACUNOS' || q.vacunoId)) {
+      ctx.addIssue({ code: 'custom', path: ['espacioId'], message: 'El filtro por espacio solo aplica a lotes' });
+    }
+    if (q.desglose === 'ESPACIO' && q.sujeto !== 'LOTES') {
+      ctx.addIssue({ code: 'custom', path: ['desglose'], message: 'El desglose por espacio solo aplica a lotes' });
+    }
     const dias = (Date.parse(`${q.hasta}T00:00:00Z`) - Date.parse(`${q.desde}T00:00:00Z`)) / DIA_MS + 1;
     if (dias < 1) ctx.addIssue({ code: 'custom', path: ['hasta'], message: 'La fecha final no puede ser anterior a la inicial' });
     else if (dias > MAX_DIAS_RANGO) {

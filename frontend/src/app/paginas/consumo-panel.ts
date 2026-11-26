@@ -16,8 +16,10 @@ import {
   hoyBogota,
   Jornada,
   JORNADAS,
+  Lote,
   TipoConsumo,
 } from '../core/modelos';
+import { Raciones, RacionesApi } from '../core/raciones-api';
 import { VacunosApi } from '../core/vacunos-api';
 import { ConsumoForm } from './consumo-form';
 
@@ -33,7 +35,7 @@ import { ConsumoForm } from './consumo-form';
           {{ a.mensaje }}
         </p>
       }
-      <app-consumo-form [tipo]="tipo()" [animales]="animales()" [alimentos]="alimentos()" (guardado)="alGuardar($event)" (encolado)="alEncolar()" />
+      <app-consumo-form [tipo]="tipo()" [animales]="animales()" [alimentos]="alimentos()" [lotes]="lotes()" [raciones]="raciones()" (guardado)="alGuardar($event)" (encolado)="alEncolar()" />
     </section>
 
     <h2 class="titulo-lista">Consumos registrados</h2>
@@ -91,7 +93,12 @@ import { ConsumoForm } from './consumo-form';
         <tbody>
           @for (c of consumos(); track c.id) {
             <tr>
-              <td><strong>{{ nombreDe(c) }}</strong></td>
+              <td>
+                <strong>{{ nombreDe(c) }}</strong>
+                @if (c.espacio; as esp) {
+                  <br /><span class="insignia">{{ esp.codigo }}</span>
+                }
+              </td>
               <td data-etiqueta="Alimento">{{ c.alimento.nombre }}</td>
               <td data-etiqueta="Cantidad">{{ gramos(c.cantidadGramos) }}</td>
               <td data-etiqueta="Jornada">{{ etiqueta(jornadas, c.jornada) }} · {{ fecha(c.fecha) }}</td>
@@ -132,6 +139,7 @@ export class ConsumoPanel {
   private readonly alimentosApi = inject(AlimentosApi);
   private readonly vacunosApi = inject(VacunosApi);
   private readonly lotesApi = inject(LotesApi);
+  private readonly racionesApi = inject(RacionesApi);
   private readonly auth = inject(Auth);
   private readonly recarga$ = new Subject<void>();
 
@@ -146,6 +154,8 @@ export class ConsumoPanel {
 
   protected readonly animales = signal<{ id: string; nombre: string }[]>([]);
   protected readonly alimentos = signal<Alimento[]>([]);
+  protected readonly lotes = signal<Lote[]>([]);
+  protected readonly raciones = signal<Raciones | null>(null);
 
   protected readonly desde = signal(hoyBogota());
   protected readonly hasta = signal(hoyBogota());
@@ -213,10 +223,17 @@ export class ConsumoPanel {
     const animales$: Observable<{ id: string; nombre: string }[]> =
       tipo === 'vacunos' ? this.vacunosApi.listar(filtros) : this.lotesApi.listar(filtros);
     animales$.subscribe({
-      next: (animales) => this.animales.set(animales),
+      next: (animales) => {
+        this.animales.set(animales);
+        if (tipo === 'lotes') this.lotes.set(animales as Lote[]);
+      },
       error: (error) => this.error.set(mensajeDeError(error)),
     });
     this.recargarAlimentos(fincaId);
+    if (tipo === 'lotes') {
+      // Sin conexión responde la copia del service worker; si no hay ninguna, el formulario usa la tabla por defecto.
+      this.racionesApi.obtener(fincaId).subscribe({ next: (r) => this.raciones.set(r), error: () => undefined });
+    }
   }
 
   private recargarAlimentos(fincaId: string): void {

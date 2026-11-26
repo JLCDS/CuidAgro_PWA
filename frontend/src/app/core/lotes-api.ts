@@ -19,6 +19,7 @@ export interface LoteGuardar {
   proposito: PropositoLote;
   fechaIngreso: string | null;
   observaciones: string;
+  espacioId: string | null;
 }
 
 @Injectable({ providedIn: 'root' })

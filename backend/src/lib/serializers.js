@@ -1,3 +1,4 @@
+import { edadActual, racionSugerida } from '../modules/raciones/raciones.calculo.js';
 import { permisosDe } from './roles.js';
 
 export const includeUsuario = {
@@ -69,7 +70,12 @@ export function aVacuno(v) {
   };
 }
 
-export function aLote(l) {
+export const includeLote = { ...includeFinca, espacio: { select: { id: true, codigo: true } } };
+
+const espacioCorto = (e) => (e ? { id: e.id, codigo: e.codigo } : null);
+
+/** `gramos` es la tabla de ración de la finca del lote: `{ ALIMENTACION: number[], PRODUCCION: number[] }`. */
+export function aLote(l, gramos) {
   return {
     ...aRegistroBase(l),
     tipoAve: l.tipoAve,
@@ -77,6 +83,44 @@ export function aLote(l) {
     edadMaxSemanas: l.edadMaxSemanas,
     cantidad: l.cantidad,
     fechaIngreso: aFechaISO(l.fechaIngreso),
+    espacioId: l.espacioId,
+    espacio: espacioCorto(l.espacio),
+    edadActual: edadActual(l),
+    racionSugerida: racionSugerida(l, gramos[l.proposito]),
+  };
+}
+
+export const includeEspacio = {
+  finca: { select: { id: true, nombre: true } },
+  lotes: { where: { estado: 'ACTIVO' }, take: 1 },
+};
+
+export function aEspacio(e) {
+  const lote = e.lotes?.[0];
+  return {
+    id: e.id,
+    fincaId: e.fincaId,
+    finca: e.finca,
+    codigo: e.codigo,
+    nombre: e.nombre,
+    tipo: e.tipo,
+    capacidad: e.capacidad,
+    estado: e.estado,
+    motivoBaja: e.motivoBaja,
+    observaciones: e.observaciones,
+    loteActual: lote
+      ? {
+          id: lote.id,
+          nombre: lote.nombre,
+          cantidad: lote.cantidad,
+          proposito: lote.proposito,
+          fechaIngreso: aFechaISO(lote.fechaIngreso),
+          edadActual: edadActual(lote),
+        }
+      : null,
+    creadoPorId: e.creadoPorId,
+    createdAt: e.createdAt.toISOString(),
+    updatedAt: e.updatedAt.toISOString(),
   };
 }
 
@@ -108,6 +152,7 @@ export function aEntrada(e) {
 export function aConsumo(c, relacion) {
   const { finca, ...animal } = c[relacion];
   return {
+    ...(relacion === 'lote' ? { espacioId: c.espacioId, espacio: espacioCorto(c.espacio) } : {}),
     id: c.id,
     [`${relacion}Id`]: c[`${relacion}Id`],
     [relacion]: { id: animal.id, nombre: animal.nombre },

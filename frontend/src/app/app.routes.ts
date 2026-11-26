@@ -38,6 +38,12 @@ export const routes: Routes = [
         loadComponent: () => import('./paginas/lotes').then((m) => m.Lotes),
       },
       {
+        path: 'espacios',
+        title: 'Espacios · CuidAgro',
+        canActivate: [permisoGuard('animales:consultar')],
+        loadComponent: () => import('./paginas/espacios').then((m) => m.Espacios),
+      },
+      {
         path: 'alimentos',
         title: 'Inventario · CuidAgro',
         canActivate: [permisoGuard('alimentos:consultar')],

@@ -32,6 +32,9 @@ const ORIGEN_VACUNOS = {
   tabla: Prisma.raw('consumos_vacunos'),
   campo: Prisma.raw('vacuno_id'),
   tablaSujeto: Prisma.raw('vacunos'),
+  espacio: Prisma.sql`NULL::uuid AS espacio_id, NULL::text AS espacio_codigo`,
+  unirEspacio: Prisma.empty,
+  filtroEspacio: () => Prisma.empty,
 };
 const ORIGEN_LOTES = {
   tipo: 'LOTE',
@@ -39,29 +42,37 @@ const ORIGEN_LOTES = {
   tabla: Prisma.raw('consumos_lotes'),
   campo: Prisma.raw('lote_id'),
   tablaSujeto: Prisma.raw('lotes_oviparos'),
+  espacio: Prisma.sql`c.espacio_id, e.codigo AS espacio_codigo`,
+  unirEspacio: Prisma.sql`LEFT JOIN espacios e ON e.id = c.espacio_id`,
+  filtroEspacio: (espacioId) => Prisma.sql`AND (${espacioId}::uuid IS NULL OR c.espacio_id = ${espacioId}::uuid)`,
 };
 
 /** Consumos crudos de un tipo de sujeto, limitados a finca, rango y filtros (los valores siempre van parametrizados). */
-function origen({ tipo, filtro, tabla, campo, tablaSujeto }, q) {
+function origen({ tipo, filtro, tabla, campo, tablaSujeto, espacio, unirEspacio, filtroEspacio }, q) {
   const sujetoId = q[filtro] ?? null;
   const alimentoId = q.alimentoId ?? null;
+  const espacioId = q.espacioId ?? null;
   return Prisma.sql`
     SELECT c.fecha, ${tipo}::text AS tipo, s.id AS sujeto_id, s.nombre AS sujeto_nombre,
-           a.id AS alimento_id, a.nombre AS alimento_nombre, c.cantidad_gramos AS gramos
+           a.id AS alimento_id, a.nombre AS alimento_nombre, c.cantidad_gramos AS gramos,
+           ${espacio}
       FROM ${tabla} c
       JOIN ${tablaSujeto} s ON s.id = c.${campo}
       JOIN alimentos a ON a.id = c.alimento_id
+      ${unirEspacio}
      WHERE s.finca_id = ${q.fincaId}::uuid
        AND c.fecha BETWEEN ${q.desde}::date AND ${q.hasta}::date
        AND (${alimentoId}::uuid IS NULL OR c.alimento_id = ${alimentoId}::uuid)
-       AND (${sujetoId}::uuid IS NULL OR s.id = ${sujetoId}::uuid)`;
+       AND (${sujetoId}::uuid IS NULL OR s.id = ${sujetoId}::uuid)
+       ${filtroEspacio(espacioId)}`;
 }
 
 /** Qué tipos de sujeto entran: `sujeto` y los filtros por animal o lote se combinan. */
-function origenesDe({ sujeto, vacunoId, loteId }) {
+function origenesDe({ sujeto, vacunoId, loteId, espacioId }) {
   const hayFiltro = Boolean(vacunoId || loteId);
   const lista = [];
-  if (sujeto !== 'LOTES' && (!hayFiltro || vacunoId)) lista.push(ORIGEN_VACUNOS);
+  // El espacio solo existe en los lotes: con ese filtro no entran vacunos.
+  if (sujeto !== 'LOTES' && !espacioId && (!hayFiltro || vacunoId)) lista.push(ORIGEN_VACUNOS);
   if (sujeto !== 'VACUNOS' && (!hayFiltro || loteId)) lista.push(ORIGEN_LOTES);
   return lista;
 }
@@ -81,6 +92,10 @@ const DESGLOSES = {
     columnas: Prisma.raw('t.tipo, t.sujeto_id, t.sujeto_nombre, t.alimento_id, t.alimento_nombre'),
     agrupar: Prisma.raw(', t.tipo, t.sujeto_id, t.sujeto_nombre, t.alimento_id, t.alimento_nombre'),
   },
+  ESPACIO: {
+    columnas: Prisma.raw("'ESPACIO'::text AS tipo, t.espacio_id AS sujeto_id, COALESCE(t.espacio_codigo, 'Sin espacio') AS sujeto_nombre, NULL::uuid AS alimento_id, NULL::text AS alimento_nombre"),
+    agrupar: Prisma.raw(', t.espacio_id, t.espacio_codigo'),
+  },
   NINGUNO: {
     columnas: Prisma.raw('NULL::text AS tipo, NULL::uuid AS sujeto_id, NULL::text AS sujeto_nombre, NULL::uuid AS alimento_id, NULL::text AS alimento_nombre'),
     agrupar: Prisma.empty,
@@ -88,6 +103,8 @@ const DESGLOSES = {
 };
 
 const ordenTipo = (tipo) => (tipo === 'VACUNO' ? 0 : 1);
+// La fila "Sin espacio" (id nulo) va al final de su periodo.
+const ordenSinId = (sujeto) => (sujeto.id === null ? 1 : 0);
 
 export async function reporteConsumos(actor, q) {
   const parametros = {
@@ -122,6 +139,8 @@ export async function reporteConsumos(actor, q) {
   );
   const { columnas, agrupar } = DESGLOSES[q.desglose];
   const periodo = PERIODO[q.agrupacion];
+  // Con el desglose por espacio, "sujetos" son los espacios reales (sin contar "Sin espacio").
+  const sujetosDistintos = q.desglose === 'ESPACIO' ? Prisma.sql`COUNT(DISTINCT t.espacio_id)` : Prisma.sql`COUNT(DISTINCT (t.tipo, t.sujeto_id))`;
 
   const [filasSql, totalSql] = await Promise.all([
     prisma.$queryRaw`
@@ -131,7 +150,7 @@ export async function reporteConsumos(actor, q) {
        GROUP BY ${periodo}${agrupar}`,
     prisma.$queryRaw`
       SELECT COALESCE(SUM(t.gramos), 0)::bigint AS gramos, COUNT(*)::bigint AS registros,
-             COUNT(DISTINCT (t.tipo, t.sujeto_id))::bigint AS sujetos
+             ${sujetosDistintos}::bigint AS sujetos
         FROM (${union}) t`,
   ]);
 
@@ -147,7 +166,11 @@ export async function reporteConsumos(actor, q) {
       (a, b) =>
         a.periodo.localeCompare(b.periodo) ||
         (a.sujeto ? ordenTipo(a.sujeto.tipo) - ordenTipo(b.sujeto.tipo) : 0) ||
-        (a.sujeto ? compararNombres(a.sujeto.nombre, b.sujeto.nombre) || a.sujeto.id.localeCompare(b.sujeto.id) : 0) ||
+        (a.sujeto
+          ? ordenSinId(a.sujeto) - ordenSinId(b.sujeto) ||
+            compararNombres(a.sujeto.nombre, b.sujeto.nombre) ||
+            (a.sujeto.id ?? '').localeCompare(b.sujeto.id ?? '')
+          : 0) ||
         (a.alimento ? compararNombres(a.alimento.nombre, b.alimento.nombre) || a.alimento.id.localeCompare(b.alimento.id) : 0),
     );
 

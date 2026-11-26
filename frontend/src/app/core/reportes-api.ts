@@ -26,6 +26,7 @@ export class ReportesApi {
       .set('desglose', f.desglose);
     if (f.vacunoId) params = params.set('vacunoId', f.vacunoId);
     if (f.loteId) params = params.set('loteId', f.loteId);
+    if (f.espacioId) params = params.set('espacioId', f.espacioId);
     if (f.alimentoId) params = params.set('alimentoId', f.alimentoId);
     return this.http.get<ReporteConsumos>('/api/reportes/consumos', { params });
   }

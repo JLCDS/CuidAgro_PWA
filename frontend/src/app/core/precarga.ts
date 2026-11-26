@@ -4,6 +4,7 @@ import { AlimentosApi } from './alimentos-api';
 import { Conexion } from './conexion';
 import { FincaActiva } from './finca-activa';
 import { LotesApi } from './lotes-api';
+import { RacionesApi } from './raciones-api';
 import { VacunosApi } from './vacunos-api';
 
 /**
@@ -19,6 +20,7 @@ export class Precarga {
   private readonly vacunos = inject(VacunosApi);
   private readonly lotes = inject(LotesApi);
   private readonly alimentos = inject(AlimentosApi);
+  private readonly raciones = inject(RacionesApi);
 
   constructor() {
     effect(() => {
@@ -37,6 +39,7 @@ export class Precarga {
     this.vacunos.listar({ fincaId, estado: 'ACTIVO', q: '', proposito: '' }).subscribe(ignorar);
     this.lotes.listar({ fincaId, estado: 'ACTIVO', q: '', proposito: '' }).subscribe(ignorar);
     if (this.auth.tienePermiso('consumos:registrar')) {
+      this.raciones.obtener(fincaId).subscribe(ignorar);
       this.alimentos.listar({ fincaId, estado: 'ACTIVO', q: '', tipo: '', bajoStock: false }).subscribe(ignorar);
     }
   }

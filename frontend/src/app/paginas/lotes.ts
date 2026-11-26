@@ -65,6 +65,7 @@ import { LoteForm } from './lote-form';
               <th>Lote</th>
               <th>Cantidad</th>
               <th>Edad</th>
+              <th>Espacio</th>
               <th>Propósito</th>
               <th>Estado</th>
               @if (hayAcciones()) {
@@ -82,7 +83,19 @@ import { LoteForm } from './lote-form';
                   }
                 </td>
                 <td data-etiqueta="Cantidad">{{ l.cantidad }} aves</td>
-                <td data-etiqueta="Edad">{{ l.edadMinSemanas }} a {{ l.edadMaxSemanas }} semanas</td>
+                <td data-etiqueta="Edad">
+                  {{ l.edadMinSemanas }} a {{ l.edadMaxSemanas }} semanas al ingreso
+                  @if (l.estado === 'ACTIVO' && l.edadActual; as edad) {
+                    <br /><span class="insignia insignia-activo">Semana {{ edad.semanaVida }}</span>
+                  }
+                </td>
+                <td data-etiqueta="Espacio">
+                  @if (l.espacio; as esp) {
+                    <span class="insignia">{{ esp.codigo }}</span>
+                  } @else {
+                    <span class="suave">Sin espacio</span>
+                  }
+                </td>
                 <td data-etiqueta="Propósito">{{ etiqueta(propositos, l.proposito) }}</td>
                 <td data-etiqueta="Estado">
                   <span class="insignia" [class.insignia-activo]="l.estado === 'ACTIVO'" [class.insignia-inactivo]="l.estado === 'INACTIVO'">

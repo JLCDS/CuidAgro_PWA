@@ -43,7 +43,7 @@ export interface Dashboard {
 
 export type Agrupacion = 'DIA' | 'MES';
 export type SujetoReporte = 'VACUNOS' | 'LOTES' | 'TODOS';
-export type Desglose = 'SUJETO' | 'ALIMENTO' | 'NINGUNO';
+export type Desglose = 'SUJETO' | 'ALIMENTO' | 'ESPACIO' | 'NINGUNO';
 
 export interface FiltrosReporte {
   fincaId: string;
@@ -53,13 +53,14 @@ export interface FiltrosReporte {
   sujeto: SujetoReporte;
   vacunoId: string;
   loteId: string;
+  espacioId: string;
   alimentoId: string;
   desglose: Desglose;
 }
 
 export interface FilaReporte {
   periodo: string;
-  sujeto: { tipo: 'VACUNO' | 'LOTE'; id: string; nombre: string } | null;
+  sujeto: { tipo: 'VACUNO' | 'LOTE' | 'ESPACIO'; id: string | null; nombre: string } | null;
   alimento: { id: string; nombre: string } | null;
   gramos: number;
   registros: number;
@@ -213,7 +214,7 @@ export function generarCsv(filas: FilaReporte[]): string {
     lineas.push(
       [
         celdaTexto(f.periodo),
-        f.sujeto ? (f.sujeto.tipo === 'VACUNO' ? 'Vacuno' : 'Lote') : 'Todos',
+        f.sujeto ? (f.sujeto.tipo === 'VACUNO' ? 'Vacuno' : f.sujeto.tipo === 'ESPACIO' ? 'Espacio' : 'Lote') : 'Todos',
         celdaTexto(f.sujeto?.nombre ?? 'Todos'),
         celdaTexto(f.alimento?.nombre ?? ''),
         String(f.gramos),

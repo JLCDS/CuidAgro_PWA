@@ -127,8 +127,58 @@ export interface Vacuno extends RegistroBase {
   proposito: PropositoVacuno;
 }
 
+export interface EspacioResumen {
+  id: string;
+  codigo: string;
+}
+
+export interface EdadActual {
+  minSemanas: number;
+  maxSemanas: number;
+  semanaVida: number;
+}
+
+export interface RacionSugerida {
+  semanaVida: number;
+  gramosAveDia: number;
+  gramosDia: number;
+}
+
+export type TipoEspacio = 'CUADRANTE' | 'ZONA' | 'OTRO';
+
+export const TIPOS_ESPACIO: { valor: TipoEspacio; etiqueta: string }[] = [
+  { valor: 'CUADRANTE', etiqueta: 'Cuadrante' },
+  { valor: 'ZONA', etiqueta: 'Zona' },
+  { valor: 'OTRO', etiqueta: 'Otro' },
+];
+
+export interface Espacio {
+  id: string;
+  fincaId: string;
+  codigo: string;
+  nombre: string | null;
+  tipo: TipoEspacio;
+  capacidad: number | null;
+  estado: EstadoRegistro;
+  motivoBaja: string | null;
+  observaciones: string | null;
+  loteActual: {
+    id: string;
+    nombre: string;
+    cantidad: number;
+    proposito: PropositoLote;
+    fechaIngreso: string | null;
+    edadActual: EdadActual;
+  } | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Lote extends RegistroBase {
   tipoAve: string | null;
+  espacio?: EspacioResumen | null;
+  edadActual?: EdadActual;
+  racionSugerida?: RacionSugerida;
   edadMinSemanas: number;
   edadMaxSemanas: number;
   cantidad: number;
@@ -205,6 +255,8 @@ export interface Consumo {
   id: string;
   vacuno?: FincaResumen;
   lote?: FincaResumen;
+  /** Espacio donde ocurrió el consumo de un lote (instantánea fijada por el servidor). */
+  espacio?: EspacioResumen | null;
   finca: FincaResumen;
   alimentoId: string;
   alimento: { id: string; nombre: string; stockGramos: number; bajoStock: boolean };

@@ -23,15 +23,17 @@ model Rol {
 }
 
 model Finca {
-  id           String         @id @default(uuid()) @db.Uuid
+  id           String          @id @default(uuid()) @db.Uuid
   nombre       String
   ubicacion    String?
   descripcion  String?
-  createdAt    DateTime       @default(now()) @map("created_at")
-  updatedAt    DateTime       @updatedAt @map("updated_at")
+  createdAt    DateTime        @default(now()) @map("created_at")
+  updatedAt    DateTime        @updatedAt @map("updated_at")
   usuarios     UsuarioFinca[]
   vacunos      Vacuno[]
   lotes        LoteOviparo[]
+  espacios     Espacio[]
+  raciones     RacionSemanal[]
   alimentos    Alimento[]
   novedades    Novedad[]
   casosSalud   CasoSalud[]
@@ -56,6 +58,7 @@ model Usuario {
   refreshTokens       RefreshToken[]
   vacunosCreados      Vacuno[]
   lotesCreados        LoteOviparo[]
+  espaciosCreados     Espacio[]
   alimentosCreados    Alimento[]
   entradasAlimento    EntradaAlimento[]
   consumosVacunos     ConsumoVacuno[]
@@ -155,6 +158,7 @@ model Vacuno {
 }
 
 /// Único por finca sin distinguir mayúsculas: índice `(finca_id, lower(nombre))` añadido a mano en la migración.
+/// Un espacio solo admite un lote activo: índice único parcial `lotes_espacio_activo_uq` añadido a mano.
 model LoteOviparo {
   id             String         @id @default(uuid()) @db.Uuid
   fincaId        String         @map("finca_id") @db.Uuid
@@ -165,6 +169,7 @@ model LoteOviparo {
   cantidad       Int
   proposito      PropositoLote
   fechaIngreso   DateTime?      @map("fecha_ingreso") @db.Date
+  espacioId      String?        @map("espacio_id") @db.Uuid
   estado         EstadoRegistro @default(ACTIVO)
   motivoBaja     String?        @map("motivo_baja")
   observaciones  String?
@@ -173,6 +178,7 @@ model LoteOviparo {
   updatedAt      DateTime       @updatedAt @map("updated_at")
   finca          Finca          @relation(fields: [fincaId], references: [id], onDelete: Restrict)
   creadoPor      Usuario        @relation(fields: [creadoPorId], references: [id], onDelete: Restrict)
+  espacio        Espacio?       @relation(fields: [espacioId], references: [id], onDelete: Restrict)
 
   consumos     ConsumoLote[]
   novedades    Novedad[]
@@ -181,7 +187,50 @@ model LoteOviparo {
 
   @@index([fincaId])
   @@index([estado])
+  @@index([espacioId])
   @@map("lotes_oviparos")
+}
+
+enum TipoEspacio {
+  CUADRANTE
+  ZONA
+  OTRO
+}
+
+/// Cuadrante o zona del galpón. Código único por finca (en mayúsculas).
+model Espacio {
+  id            String         @id @default(uuid()) @db.Uuid
+  fincaId       String         @map("finca_id") @db.Uuid
+  codigo        String
+  nombre        String?
+  tipo          TipoEspacio
+  capacidad     Int?
+  estado        EstadoRegistro @default(ACTIVO)
+  motivoBaja    String?        @map("motivo_baja")
+  observaciones String?
+  creadoPorId   String         @map("creado_por_id") @db.Uuid
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  finca         Finca          @relation(fields: [fincaId], references: [id], onDelete: Restrict)
+  creadoPor     Usuario        @relation(fields: [creadoPorId], references: [id], onDelete: Restrict)
+
+  lotes    LoteOviparo[]
+  consumos ConsumoLote[]
+
+  @@unique([fincaId, codigo])
+  @@map("espacios")
+}
+
+/// Ración por semana de vida (g por ave y día). Sin filas, se usa la tabla por defecto del código.
+model RacionSemanal {
+  fincaId      String        @map("finca_id") @db.Uuid
+  proposito    PropositoLote
+  semana       Int
+  gramosAveDia Int           @map("gramos_ave_dia")
+  finca        Finca         @relation(fields: [fincaId], references: [id], onDelete: Cascade)
+
+  @@id([fincaId, proposito, semana])
+  @@map("raciones_semanales")
 }
 
 enum TipoAlimento {
@@ -266,6 +315,8 @@ model ConsumoLote {
   id              String      @id @default(uuid()) @db.Uuid
   loteId          String      @map("lote_id") @db.Uuid
   alimentoId      String      @map("alimento_id") @db.Uuid
+  /// Instantánea del espacio del lote al registrar el consumo.
+  espacioId       String?     @map("espacio_id") @db.Uuid
   cantidadGramos  Int         @map("cantidad_gramos")
   jornada         Jornada
   fecha           DateTime    @db.Date
@@ -275,12 +326,14 @@ model ConsumoLote {
   createdAt       DateTime    @default(now()) @map("created_at")
   updatedAt       DateTime    @updatedAt @map("updated_at")
   lote            LoteOviparo @relation(fields: [loteId], references: [id], onDelete: Restrict)
+  espacio         Espacio?    @relation(fields: [espacioId], references: [id], onDelete: Restrict)
   alimento        Alimento    @relation(fields: [alimentoId], references: [id], onDelete: Restrict)
   registradoPor   Usuario     @relation(fields: [registradoPorId], references: [id], onDelete: Restrict)
 
   @@unique([loteId, alimentoId, fecha, jornada])
   @@index([alimentoId, fecha])
   @@index([fecha])
+  @@index([espacioId, fecha])
   @@map("consumos_lotes")
 }
 

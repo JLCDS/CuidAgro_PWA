@@ -1,6 +1,7 @@
 import { Component, inject, input, OnInit, output, signal } from '@angular/core';
 import { AbstractControl, NonNullableFormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { Modal } from '../compartido/modal';
+import { EspaciosApi } from '../core/espacios-api';
 import { mensajeDeError } from '../core/errores';
 import { LoteGuardar, LotesApi } from '../core/lotes-api';
 import { hoyBogota, Lote, PROPOSITOS_LOTE, PropositoLote } from '../core/modelos';
@@ -84,6 +85,17 @@ type Campo = 'nombre' | 'edadMinSemanas' | 'edadMaxSemanas' | 'cantidad' | 'fech
         </div>
 
         <div class="campo">
+          <label for="l-espacio">Espacio</label>
+          <select id="l-espacio" class="input" formControlName="espacioId">
+            <option value="">Sin espacio</option>
+            @for (e of opcionesEspacio(); track e.id) {
+              <option [value]="e.id">{{ e.codigo }}{{ e.nombre ? ' · ' + e.nombre : '' }}</option>
+            }
+          </select>
+          <span class="ayuda">Solo aparecen los espacios libres y el actual del lote.</span>
+        </div>
+
+        <div class="campo">
           <label for="l-fecha">Fecha de ingreso (opcional)</label>
           <input id="l-fecha" class="input" type="date" [max]="hoy" formControlName="fechaIngreso"
             [class.invalido]="invalido('fechaIngreso')" />
@@ -113,6 +125,7 @@ type Campo = 'nombre' | 'edadMinSemanas' | 'edadMaxSemanas' | 'cantidad' | 'fech
 })
 export class LoteForm implements OnInit {
   private readonly api = inject(LotesApi);
+  private readonly espacios = inject(EspaciosApi);
 
   readonly lote = input<Lote | null>(null);
   readonly fincaId = input.required<string>();
@@ -133,10 +146,14 @@ export class LoteForm implements OnInit {
       cantidad: [null as number | null, [Validators.required, Validators.min(1), Validators.max(100000), Validators.pattern(/^\d+$/)]],
       proposito: ['PRODUCCION' as PropositoLote],
       fechaIngreso: ['', [noFutura]],
+      espacioId: [''],
       observaciones: [''],
     },
     { validators: rangoEdad },
   );
+
+  /** Espacios libres más el actual del lote. */
+  protected readonly opcionesEspacio = signal<{ id: string; codigo: string; nombre: string | null }[]>([]);
 
   ngOnInit(): void {
     const l = this.lote();
@@ -145,9 +162,25 @@ export class LoteForm implements OnInit {
         ...l,
         tipoAve: l.tipoAve ?? '',
         fechaIngreso: l.fechaIngreso ?? '',
+        espacioId: l.espacio?.id ?? '',
         observaciones: l.observaciones ?? '',
       });
     }
+    this.cargarEspacios(l);
+  }
+
+  private cargarEspacios(l: Lote | null): void {
+    const actual = l?.espacio ? [{ id: l.espacio.id, codigo: l.espacio.codigo, nombre: null }] : [];
+    this.opcionesEspacio.set(actual);
+    this.espacios.listar({ fincaId: this.fincaId(), estado: 'ACTIVO' }).subscribe({
+      next: ({ datos }) => {
+        const libres = datos.filter((e) => !e.loteActual || e.loteActual.id === l?.id);
+        const idsLibres = new Set(libres.map((e) => e.id));
+        // El espacio actual se conserva aunque ya no aparezca (por ejemplo, si el lote está de baja).
+        this.opcionesEspacio.set([...actual.filter((e) => !idsLibres.has(e.id)), ...libres]);
+      },
+      error: () => undefined,
+    });
   }
 
   protected invalido(campo: Campo): boolean {
@@ -163,7 +196,11 @@ export class LoteForm implements OnInit {
     this.guardando.set(true);
     this.error.set(null);
     const valores = this.form.getRawValue();
-    const datos = { ...valores, fechaIngreso: valores.fechaIngreso || null } as LoteGuardar;
+    const datos = {
+      ...valores,
+      fechaIngreso: valores.fechaIngreso || null,
+      espacioId: valores.espacioId || null,
+    } as LoteGuardar;
     const lote = this.lote();
     (lote ? this.api.actualizar(lote.id, datos) : this.api.crear(this.fincaId(), datos)).subscribe({
       next: () => this.guardado.emit(),

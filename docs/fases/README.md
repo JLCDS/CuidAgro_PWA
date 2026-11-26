@@ -16,7 +16,8 @@ Visión general del proyecto completo (HU oficiales, arquitectura, seguridad, PW
 | 6. Medicamentos y tratamientos | HU016, HU017 | Terminada, en revisión | [fase-06-medicamentos-tratamientos.md](fase-06-medicamentos-tratamientos.md) |
 | 7. Dashboard y reportes | HU018, HU019 | Terminada, en revisión | [fase-07-dashboard-reportes.md](fase-07-dashboard-reportes.md) |
 | 8. PWA y offline | HU020, HU021 | Terminada, en revisión | [fase-08-pwa-offline.md](fase-08-pwa-offline.md) |
-| 9. Pruebas y despliegue | — | En curso: código listo para Render | [fase-09-despliegue.md](fase-09-despliegue.md) |
+| 9. Pruebas y despliegue | — | Desplegado en Render; falta la prueba en Android | [fase-09-despliegue.md](fase-09-despliegue.md) |
+| 10. Espacios del galpón y ración por semana | Amplía la HU de reportes | Terminada, en revisión | [fase-10-espacios-galpon.md](fase-10-espacios-galpon.md) |
 
 ## Decisiones abiertas
 

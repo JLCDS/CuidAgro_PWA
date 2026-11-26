@@ -7,12 +7,16 @@ import { Conexion } from '../core/conexion';
 import { ConsumoGuardar, ConsumosApi } from '../core/consumos-api';
 import { mensajeDeError } from '../core/errores';
 import { nuevoClienteId } from '../core/offline-logica';
+import { Raciones } from '../core/raciones-api';
+import { racionDeLote, tablaDefecto } from '../core/raciones';
+import { formatearPeso } from '../core/reportes-modelos';
 import { Sincronizador } from '../core/sincronizador';
 import {
   Alimento,
   Consumo,
   formatearGramos,
   hoyBogota,
+  Lote,
   Jornada,
   JORNADAS,
   jornadaActual,
@@ -53,6 +57,20 @@ function noFutura(control: AbstractControl<string>): ValidationErrors | null {
           }
         }
       </div>
+
+      @if (racion(); as r) {
+        <div class="racion" role="status">
+          <p>
+            @if (r.codigo) { <strong>{{ r.codigo }}</strong> · }
+            Semana {{ r.calculo.semanaVida }} · {{ r.calculo.gramosAveDia }} g por ave × {{ r.cantidad }} aves =
+            <strong>{{ peso(r.calculo.gramosDia) }} al día</strong>
+            ({{ peso(r.calculo.gramosPorComida) }} por comida si das 2)
+          </p>
+          @if (r.calculo.gramosPorComida > 0) {
+            <button type="button" class="btn" (click)="usarRacion(r.calculo.gramosPorComida)">Usar {{ peso(r.calculo.gramosPorComida) }}</button>
+          }
+        </div>
+      }
 
       <div class="campo">
         <label for="c-alimento">Alimento</label>
@@ -126,6 +144,7 @@ function noFutura(control: AbstractControl<string>): ValidationErrors | null {
     .segmentos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
     .segmento { padding: 0 6px; }
     .segmento.activo { background: var(--verde-700); border-color: var(--verde-700); color: #fff; }
+    .racion { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: var(--radio); background: var(--verde-100); color: var(--verde-900); overflow-wrap: anywhere; }
     .boton-guardar { flex: 1; min-height: 52px; }
   `,
 })
@@ -138,6 +157,10 @@ export class ConsumoForm implements OnInit {
   readonly tipo = input.required<TipoConsumo>();
   readonly animales = input<{ id: string; nombre: string }[]>([]);
   readonly alimentos = input<Alimento[]>([]);
+  /** Lotes completos (con edad y cantidad), para sugerir la ración. Solo aplica al tipo "lotes". */
+  readonly lotes = input<Lote[]>([]);
+  /** Raciones de la finca; si no hay (sin conexión y sin caché), se usa la tabla por defecto. */
+  readonly raciones = input<Raciones | null>(null);
   /** Si viene, se edita ese consumo; si no, se crea uno nuevo. */
   readonly consumo = input<Consumo | null>(null);
   readonly guardado = output<Consumo>();
@@ -147,6 +170,7 @@ export class ConsumoForm implements OnInit {
 
   protected readonly jornadas = JORNADAS;
   protected readonly gramos = formatearGramos;
+  protected readonly peso = formatearPeso;
   protected readonly hoy = hoyBogota();
   protected readonly guardando = signal(false);
   protected readonly error = signal<string | null>(null);
@@ -172,6 +196,16 @@ export class ConsumoForm implements OnInit {
     const { cantidad } = this.valores();
     const g = this.gramosEscritos();
     return !!cantidad && cantidad > 0 && (g < 1 || g > this.maximo());
+  });
+  /** Ración sugerida del lote elegido para hoy; usa los datos del lote y las raciones que ya estén en memoria o en caché. */
+  protected readonly racion = computed(() => {
+    if (this.tipo() !== 'lotes' || this.consumo()) return null;
+    const id = this.valores().animalId;
+    const lote = id ? this.lotes().find((l) => l.id === id) : undefined;
+    if (!lote) return null;
+    const tabla = this.raciones()?.tablas[lote.proposito]?.semanas;
+    const calculo = racionDeLote(lote, tabla && tabla.length > 0 ? tabla : tablaDefecto(lote.proposito), hoyBogota());
+    return { codigo: lote.espacio?.codigo ?? null, cantidad: lote.cantidad, calculo };
   });
   /** Alimentos activos; al editar se conserva el actual aunque ya esté dado de baja. */
   protected readonly opcionesAlimento = computed<{ id: string; nombre: string; stockGramos: number }[]>(() => {
@@ -199,6 +233,13 @@ export class ConsumoForm implements OnInit {
   protected invalido(campo: 'animalId' | 'alimentoId' | 'cantidad' | 'fecha'): boolean {
     const control = this.form.controls[campo];
     return control.invalid && control.touched;
+  }
+
+  /** Llena la cantidad con la ración por comida, en la unidad que esté elegida (g o kg). */
+  protected usarRacion(gramosRacion: number): void {
+    const enKilos = this.form.controls.unidad.value === 'kg';
+    this.form.controls.cantidad.setValue(enKilos ? gramosRacion / 1000 : gramosRacion);
+    this.form.controls.cantidad.markAsTouched();
   }
 
   protected elegirJornada(jornada: Jornada): void {

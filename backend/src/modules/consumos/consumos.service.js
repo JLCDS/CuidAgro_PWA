@@ -29,16 +29,18 @@ export const CONFIG_LOTES = {
   tabla: Prisma.raw('consumos_lotes'),
   etiqueta: 'Lote',
   maxGramos: 10_000_000,
+  conEspacio: true,
 };
 
 const iso = (fecha) => fecha.toISOString().slice(0, 10);
 
 export function servicioConsumos(cfg) {
-  const { relacion, campo, modeloConsumo, modeloAnimal, tabla, etiqueta } = cfg;
+  const { relacion, campo, modeloConsumo, modeloAnimal, tabla, etiqueta, conEspacio } = cfg;
   const include = {
     [relacion]: { select: { id: true, nombre: true, fincaId: true, finca: { select: { id: true, nombre: true } } } },
     alimento: { select: { id: true, nombre: true, stockGramos: true, stockMinimoGramos: true } },
     registradoPor: { select: { id: true, nombre: true } },
+    ...(conEspacio ? { espacio: { select: { id: true, codigo: true } } } : {}),
   };
 
   /** Un consumo de finca ajena responde igual que uno inexistente. */
@@ -113,7 +115,10 @@ export function servicioConsumos(cfg) {
     try {
       ({ id, alimentoActual } = await conDuplicados(MENSAJE_DUPLICADO, () =>
         prisma.$transaction(async (tx) => {
-          const creado = await tx[modeloConsumo].create({ data: { ...datos, registradoPorId: actor.id } });
+          const creado = await tx[modeloConsumo].create({
+            // El espacio es una instantánea del lote: lo fija el servidor y no cambia después.
+            data: { ...datos, registradoPorId: actor.id, ...(conEspacio ? { espacioId: animal.espacioId } : {}) },
+          });
           const actualizado = await tx.alimento.update({
             where: { id: datos.alimentoId },
             data: { stockGramos: { decrement: datos.cantidadGramos } },

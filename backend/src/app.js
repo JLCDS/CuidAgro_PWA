@@ -18,6 +18,8 @@ import { dashboardRouter } from './modules/dashboard/dashboard.routes.js';
 import { pushRouter } from './modules/push/push.routes.js';
 import { reportesRouter } from './modules/reportes/reportes.routes.js';
 import { fincasRouter } from './modules/fincas/fincas.routes.js';
+import { espaciosRouter } from './modules/espacios/espacios.routes.js';
+import { racionesRouter } from './modules/raciones/raciones.routes.js';
 import { lotesRouter } from './modules/lotes/lotes.routes.js';
 import { usuariosRouter } from './modules/usuarios/usuarios.routes.js';
 import { vacunosRouter } from './modules/vacunos/vacunos.routes.js';
@@ -75,6 +77,8 @@ export function createApp({ loginMaxIntentos = env.LOGIN_MAX_INTENTOS } = {}) {
   app.use('/api/fincas', fincasRouter);
   app.use('/api/vacunos', vacunosRouter);
   app.use('/api/lotes', lotesRouter);
+  app.use('/api/espacios', espaciosRouter);
+  app.use('/api/raciones', racionesRouter);
   app.use('/api/alimentos', alimentosRouter);
   app.use('/api/consumos', consumosRouter);
   app.use('/api/novedades', novedadesRouter);
