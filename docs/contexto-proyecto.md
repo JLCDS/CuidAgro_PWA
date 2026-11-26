@@ -231,7 +231,7 @@ El usuario activa o desactiva las notificaciones en su menú; el service worker 
 Cada fase se desarrolló por separado, con el desarrollo y la verificación como etapas distintas: la coordinación definió y revisó cada fase, y el desarrollo y la QA se hicieron por aparte. Desde la Fase 3 este fue el flujo de cada fase:
 
 1. **Contrato.** El coordinador escribe `docs/fases/fase-NN-*.md` con el alcance, el modelo de datos, la API exacta (rutas, permisos, JSON y códigos de error) y el frontend esperado. Las decisiones que solo puede tomar el usuario se le preguntan antes.
-2. **Desarrollo.** El desarrollo (backend y frontend en paralelo, en la Fase 8) implementa el contrato con pruebas automáticas y completan "Decisiones y motivos".
+2. **Desarrollo.** El desarrollo (backend y frontend en paralelo, en la Fase 8) implementa el contrato con pruebas automáticas y completa "Decisiones y motivos".
 3. **Verificación del coordinador.** Corre la suite completa del backend, el build y las pruebas del frontend, y revisa el código crítico (SQL, service worker, efectos de Angular).
 4. **QA aislada.** Se prueba sobre una copia congelada del código con la base `cuidagro_qa`, la API en el puerto 3190 y el frontend compilado en el 4290: cientos de comprobaciones de API contra cálculos propios, y E2E con Playwright a 1280 y 375 px con los tres roles.
 5. **Corrección y re-verificación.** Los fallos reales se corrigen y la QA repite los escenarios afectados.

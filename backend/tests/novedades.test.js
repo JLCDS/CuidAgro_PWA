@@ -1,7 +1,5 @@
-import { readdirSync } from 'node:fs';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
-import { env } from '../src/config/env.js';
 import { prisma } from '../src/lib/prisma.js';
 import { app, crearFinca, sesionDe, UUID_INEXISTENTE } from './helpers.js';
 
@@ -10,7 +8,7 @@ const PNG = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a
 const WEBP = Buffer.concat([Buffer.from('RIFF'), Buffer.from([0x10, 0, 0, 0]), Buffer.from('WEBP'), Buffer.alloc(16, 3)]);
 const FALSO = Buffer.from('esto es texto plano que finge ser una imagen, no tiene bytes mágicos');
 
-const archivosEnDisco = () => readdirSync(env.UPLOADS_DIR);
+const fotosGuardadas = async () => (await prisma.foto.findMany({ select: { archivo: true } })).map((f) => f.archivo);
 
 async function escenario() {
   const finca = await crearFinca('Finca A');
@@ -194,7 +192,7 @@ describe('Fotos', () => {
       expect(res.body).not.toHaveProperty('fotoArchivo');
       const fila = await prisma.novedad.findUnique({ where: { id: res.body.id } });
       expect(fila.fotoArchivo).toMatch(new RegExp(`^[0-9a-f-]{36}\\.${ext}$`));
-      expect(archivosEnDisco()).toContain(fila.fotoArchivo);
+      expect(await fotosGuardadas()).toContain(fila.fotoArchivo);
 
       const foto = await request(app).get(res.body.fotoUrl).set(e.vet.bearer).buffer(true).parse((r, cb) => {
         const trozos = [];
@@ -211,12 +209,12 @@ describe('Fotos', () => {
 
   it('rechaza un archivo con mimetype de imagen pero bytes de texto', async () => {
     const e = await escenario();
-    const antes = archivosEnDisco().length;
+    const antes = (await fotosGuardadas()).length;
     const res = await subir(e.ayudante, { loteId: e.lote.id }, FALSO);
     expect(res.status).toBe(400);
     expect(res.body.error.codigo).toBe('VALIDACION');
     expect(res.body.error.detalles[0].campo).toBe('foto');
-    expect(archivosEnDisco().length).toBe(antes);
+    expect((await fotosGuardadas()).length).toBe(antes);
     expect(await prisma.novedad.count()).toBe(0);
   });
 
@@ -243,7 +241,7 @@ describe('Fotos', () => {
 
   it('si la validación falla no queda archivo huérfano', async () => {
     const e = await escenario();
-    const antes = archivosEnDisco().length;
+    const antes = (await fotosGuardadas()).length;
     const res = await request(app)
       .post('/api/novedades')
       .set(e.ayudante.bearer)
@@ -252,7 +250,7 @@ describe('Fotos', () => {
       .field('descripcion', 'ab')
       .attach('foto', JPEG, { filename: 'a.jpg', contentType: 'image/jpeg' });
     expect(res.status).toBe(400);
-    expect(archivosEnDisco().length).toBe(antes);
+    expect((await fotosGuardadas()).length).toBe(antes);
   });
 
   it('GET foto responde 404 sin foto, 404 en otra finca y 401 sin token', async () => {
@@ -268,20 +266,20 @@ describe('Fotos', () => {
     const e = await escenario();
     const { body } = await subir(e.ayudante, { loteId: e.lote.id }, JPEG);
     const f1 = (await prisma.novedad.findUnique({ where: { id: body.id } })).fotoArchivo;
-    expect(archivosEnDisco()).toContain(f1);
+    expect(await fotosGuardadas()).toContain(f1);
 
     const put = await request(app).put(`/api/novedades/${body.id}/foto`).set(e.ayudante.bearer).attach('foto', PNG, { filename: 'n.png', contentType: 'image/png' });
     expect(put.status).toBe(200);
     expect(put.body).toMatchObject({ tieneFoto: true, fotoMime: 'image/png' });
     const f2 = (await prisma.novedad.findUnique({ where: { id: body.id } })).fotoArchivo;
     expect(f2).not.toBe(f1);
-    expect(archivosEnDisco()).not.toContain(f1);
-    expect(archivosEnDisco()).toContain(f2);
+    expect(await fotosGuardadas()).not.toContain(f1);
+    expect(await fotosGuardadas()).toContain(f2);
 
     const del = await request(app).delete(`/api/novedades/${body.id}/foto`).set(e.ayudante.bearer);
     expect(del.status).toBe(200);
     expect(del.body).toMatchObject({ tieneFoto: false, fotoUrl: null, fotoMime: null, fotoBytes: null });
-    expect(archivosEnDisco()).not.toContain(f2);
+    expect(await fotosGuardadas()).not.toContain(f2);
     expect((await request(app).get(`/api/novedades/${body.id}/foto`).set(e.ayudante.bearer)).status).toBe(404);
   });
 
@@ -294,7 +292,7 @@ describe('Fotos', () => {
     expect(falso.body.error.detalles[0].campo).toBe('foto');
     const sinArchivo = await request(app).put(`/api/novedades/${body.id}/foto`).set(e.ayudante.bearer).field('x', 'y');
     expect(sinArchivo.status).toBe(400);
-    expect(archivosEnDisco()).toContain(f1);
+    expect(await fotosGuardadas()).toContain(f1);
   });
 
   it('la regla del ayudante rige también para la foto', async () => {
@@ -305,9 +303,9 @@ describe('Fotos', () => {
     expect((await adjunto(e.otroAyudante)).status).toBe(403);
     expect((await request(app).delete(`/api/novedades/${body.id}/foto`).set(e.otroAyudante.bearer)).status).toBe(403);
     expect((await adjunto(e.ajeno)).status).toBe(404);
-    expect(archivosEnDisco()).toContain(f1);
+    expect(await fotosGuardadas()).toContain(f1);
     expect((await adjunto(e.vet)).status).toBe(200);
-    expect(archivosEnDisco()).not.toContain(f1);
+    expect(await fotosGuardadas()).not.toContain(f1);
     // Un ayudante ya no puede si no es de hoy.
     await prisma.novedad.update({ where: { id: body.id }, data: { createdAt: new Date(Date.now() - 36 * 3_600_000) } });
     expect((await adjunto(e.ayudante)).status).toBe(403);

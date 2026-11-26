@@ -1,9 +1,7 @@
 import { randomUUID } from 'node:crypto';
-import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
-import path from 'node:path';
 import multer from 'multer';
-import { env } from '../config/env.js';
 import { validacion } from './errors.js';
+import { prisma } from './prisma.js';
 
 export const MAX_FOTO_BYTES = 5 * 1024 * 1024;
 
@@ -50,29 +48,29 @@ export function tipoDeImagen(buffer) {
   return { mime: tipo.mime, ext: tipo.ext };
 }
 
-/** Guarda el archivo con un nombre propio y devuelve los datos para la base. */
+// Las fotos se guardan en la tabla `fotos` (no en disco): el disco del despliegue
+// gratuito se borra cada vez que el servicio se reinicia o se duerme.
+// `archivo` es la clave que la novedad guarda en `fotoArchivo`.
+
+/** Guarda la foto con un nombre propio y devuelve los datos para la novedad. */
 export async function guardarFoto(buffer) {
   const { mime, ext } = tipoDeImagen(buffer);
   const archivo = `${randomUUID()}.${ext}`;
-  await mkdir(env.UPLOADS_DIR, { recursive: true });
-  await writeFile(path.join(env.UPLOADS_DIR, archivo), buffer);
+  await prisma.foto.create({ data: { archivo, datos: buffer } });
   return { fotoArchivo: archivo, fotoMime: mime, fotoBytes: buffer.length };
 }
 
-/** Borrar es de mejor esfuerzo: un archivo huérfano no debe tumbar la petición. */
+/** Borrar es de mejor esfuerzo: una foto huérfana no debe tumbar la petición. */
 export async function borrarFoto(archivo) {
   if (!archivo) return;
   try {
-    await unlink(path.join(env.UPLOADS_DIR, path.basename(archivo)));
+    await prisma.foto.deleteMany({ where: { archivo } });
   } catch {
-    // ya no existe
+    // ya no existe o la base no respondió
   }
 }
 
 export async function leerFoto(archivo) {
-  try {
-    return await readFile(path.join(env.UPLOADS_DIR, path.basename(archivo)));
-  } catch {
-    return null;
-  }
+  const foto = await prisma.foto.findUnique({ where: { archivo } });
+  return foto ? Buffer.from(foto.datos) : null;
 }

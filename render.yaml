@@ -1,0 +1,48 @@
+# Despliegue en Render (plan gratuito): un solo servicio Node que sirve la API en /api
+# y el build de Angular en el resto de rutas, más una base PostgreSQL.
+# Se crea desde el panel de Render con "New > Blueprint" apuntando a este repositorio.
+services:
+  - type: web
+    name: cuidagro
+    runtime: node
+    plan: free
+    region: virginia
+    branch: main
+    healthCheckPath: /api/health
+    # --include=dev: con NODE_ENV=production npm omitiría Angular CLI y Prisma, que se necesitan para compilar y migrar.
+    buildCommand: >-
+      npm ci --include=dev --prefix backend &&
+      npm ci --include=dev --prefix frontend &&
+      npm run build --prefix frontend &&
+      cd backend && npx prisma generate
+    # Las migraciones y el seed (roles y primer administrador) son idempotentes: se aplican en cada arranque.
+    startCommand: cd backend && npx prisma migrate deploy && node prisma/seed.js && node src/server.js
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: NODE_ENV
+        value: production
+      - key: TRUST_PROXY
+        value: "1"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: cuidagro-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      # Se completan en el panel al crear el Blueprint (no se guardan en el repositorio).
+      - key: SEED_ADMIN_CORREO
+        sync: false
+      - key: SEED_ADMIN_PASSWORD
+        sync: false
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+
+databases:
+  - name: cuidagro-db
+    plan: free
+    region: virginia
+    databaseName: cuidagro
+    user: cuidagro

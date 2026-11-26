@@ -55,6 +55,10 @@ npm test --prefix frontend -- --watch=false
 
 Las pruebas del backend necesitan la base de datos encendida. Si creaste el contenedor antes de que existiera `docker/init-test-db.sql`, recrea el volumen con `docker compose down -v`.
 
+## Despliegue
+
+En producción un solo proceso Node sirve la API en `/api` y el build de Angular en el resto de rutas, así comparten origen y la cookie de sesión funciona. Las fotos de novedades se guardan en PostgreSQL. El despliegue en Render (plan gratuito) está descrito en `render.yaml`: en Render, **New > Blueprint** con este repositorio. Pasos, variables, límites y plan B en [docs/fases/fase-09-despliegue.md](docs/fases/fase-09-despliegue.md).
+
 ## Estructura
 
 ```

@@ -1,3 +1,6 @@
+import { existsSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import express from 'express';
@@ -19,10 +22,44 @@ import { lotesRouter } from './modules/lotes/lotes.routes.js';
 import { usuariosRouter } from './modules/usuarios/usuarios.routes.js';
 import { vacunosRouter } from './modules/vacunos/vacunos.routes.js';
 
+// Build de Angular. En el despliegue la API sirve también la app, así ambas comparten
+// origen y la cookie de sesión (SameSite=Strict, ruta /api/auth) funciona sin CORS.
+const DIR_FRONTEND = fileURLToPath(new URL('../../frontend/dist/frontend/browser/', import.meta.url));
+
+/** Sirve el build de Angular si existe, con respaldo a index.html para las rutas de la SPA. */
+function servirFrontend(app) {
+  const indice = path.join(DIR_FRONTEND, 'index.html');
+  if (!existsSync(indice)) return;
+  app.use(
+    express.static(DIR_FRONTEND, {
+      index: false,
+      setHeaders(res, archivo) {
+        // El navegador debe revisar sw.js, el HTML y el manifiesto en cada visita para detectar versiones nuevas.
+        if (/(sw\.js|index\.html|\.webmanifest)$/.test(archivo)) res.setHeader('Cache-Control', 'no-cache');
+        else if (/-[A-Za-z0-9]{8}\.(js|css)$/.test(archivo)) res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      },
+    }),
+  );
+  app.get(/.*/, (req, res, next) => {
+    if (!req.accepts('html')) return next();
+    res.setHeader('Cache-Control', 'no-cache');
+    res.sendFile(indice);
+  });
+}
+
 export function createApp({ loginMaxIntentos = env.LOGIN_MAX_INTENTOS } = {}) {
   const app = express();
   app.set('trust proxy', env.TRUST_PROXY);
-  app.use(helmet());
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          // La vista previa de la foto y las fotos autenticadas se muestran como blob:.
+          'img-src': ["'self'", 'data:', 'blob:'],
+        },
+      },
+    }),
+  );
 
   const origenes = env.CORS_ORIGIN.split(',').map((o) => o.trim()).filter(Boolean);
   if (origenes.length > 0) app.use(cors({ origin: origenes, credentials: true }));
@@ -48,6 +85,8 @@ export function createApp({ loginMaxIntentos = env.LOGIN_MAX_INTENTOS } = {}) {
   app.use('/api/reportes', reportesRouter);
   app.use('/api/push', pushRouter);
   app.use('/api', notFoundApi);
+
+  servirFrontend(app);
 
   app.use(errorHandler);
   return app;

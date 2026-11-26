@@ -520,3 +520,13 @@ model AvisoEnviado {
 
   @@map("avisos_enviados")
 }
+
+/// Bytes de las fotos de novedades. `archivo` coincide con `novedades.foto_archivo`.
+/// Se guardan en la base porque el disco del despliegue no es persistente.
+model Foto {
+  archivo   String   @id
+  datos     Bytes
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("fotos")
+}
