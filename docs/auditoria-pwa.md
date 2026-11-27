@@ -146,6 +146,37 @@ Buenas prácticas de `/login` queda en 96 (umbral 95): Lighthouse registra el er
 
 La accesibilidad ya estaba en 100 antes de las correcciones (trabajo de fases anteriores y de esta), por lo que no hubo que corregir contraste, etiquetas ni tamaños de toque.
 
+### 3.5 Resultados en producción (después del despliegue)
+
+Medido el 2026-11-27 contra https://cuidagro.onrender.com, con el servicio despierto, la sesión de un usuario veterinario de la demo y `--repeticiones 3` (mediana). Informes en `docs/auditoria/2026-11-27-produccion/`.
+
+| Página | Perfil | Rendimiento (corridas) | Accesibilidad | Buenas prácticas | SEO |
+|---|---|---|---|---|---|
+| `/login` | Móvil | 98 (98 / 98 / 99) | 100 | 96 | 100 |
+| `/login` | Escritorio | 100 (100 / 100 / 100) | 100 | 96 | 100 |
+| `/` | Móvil | 95 (92 / 95 / 96) | 100 | 100 | 100 |
+| `/` | Escritorio | 99 | 100 | 100 | 100 |
+| `/consumos` | Móvil | 93 (93 / 93 / 96) | 100 | 100 | 100 |
+| `/consumos` | Escritorio | 99 (98 / 99 / 100) | 100 | 100 | 100 |
+| `/reportes` | Móvil | **81** (75 / 81 / 97) | 100 | 100 | 100 |
+| `/reportes` | Escritorio | 100 (99 / 100 / 100) | 100 | 100 | 100 |
+| `/espacios` | Móvil | **83** (81 / 83 / 99) | 100 | 100 | 100 |
+| `/espacios` | Escritorio | **88** (88 / 100) | 100 | 100 | 100 |
+
+Lectura de los resultados:
+
+- En producción `/` y `/consumos` en móvil **sí cumplen** (95 y 93), al contrario que en local (81 y 84): el servidor de Render entrega los archivos comprimidos y con caché, y LCP de `/` móvil baja a 2,1 s.
+- Las tres mediciones que no cumplen tienen **mucha variación entre corridas** (de 75 a 97 en `/reportes` móvil y de 81 a 99 en `/espacios` móvil), y en todas el LCP está por debajo de 1 s y el CLS en 0. Lo que baja el puntaje es el tiempo de bloqueo (TBT de 690 a 780 ms en las corridas malas), que depende de la carga del equipo que mide y del arranque de JavaScript, no de la red. Es el mismo hallazgo de la sección 3.3.
+- Accesibilidad y SEO quedan en 100 en las 10 mediciones; buenas prácticas en 100 salvo `/login` (96, por el `401` esperado del intento de restaurar sesión).
+
+Encabezados confirmados en producción después del despliegue:
+
+```
+content-security-policy: default-src 'self'; … ;img-src 'self' data: blob:;object-src 'none';script-src 'self';script-src-attr 'none';style-src 'self' 'nonce-<valor por petición>';upgrade-insecure-requests
+permissions-policy: camera=(self), geolocation=(self), microphone=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=(), browsing-topics=()
+GET /robots.txt → 200 text/plain
+```
+
 ## 4. Pruebas de campo
 
 **Cómo se recogen.** Con la biblioteca `web-vitals` la app registra LCP, INP, CLS, FCP y TTFB una sola vez al arrancar, los agrupa (hasta 10 por envío) y los manda con `navigator.sendBeacon` a `POST /api/metricas` cuando la página se oculta. No se envía nada sin conexión ni en desarrollo. Cada muestra lleva solo la métrica, el valor, el patrón de la ruta (sin identificadores), el tipo de dispositivo (ancho menor de 720 px es móvil), la conexión efectiva y la versión del service worker; no se guardan usuario ni dirección IP. El servidor valida con Zod (lista blanca de nombres, rangos, 4 KB, límite por IP), calcula la calificación y borra lo que tenga más de 90 días.
@@ -207,8 +238,8 @@ strict-transport-security: max-age=31536000; includeSubDomains
 |---|---|
 | HTTPS en todo el tráfico y HSTS (pp. 4 y 6) | Cumple; la plataforma redirige y la app envía HSTS |
 | Cabecera CSP, sin `unsafe-inline` ni `unsafe-eval` en scripts (pp. 14-16 y 30-32) | Cumple |
-| CSP con nonce (pp. 24-37) | Cumple en el código para estilos; scripts con `'self'` y sin JavaScript en línea. Pendiente de desplegar |
-| `Permissions-Policy` y control de APIs privilegiadas (Sesión 23, p. 10) | Cumple en el código: cámara y geolocalización solo del propio origen, el resto desactivado. Pendiente de desplegar |
+| CSP con nonce (pp. 24-37) | Cumple para estilos; scripts con `'self'` y sin JavaScript en línea. Desplegado y verificado en producción (sección 3.5) |
+| `Permissions-Policy` y control de APIs privilegiadas (Sesión 23, p. 10) | Cumple: cámara y geolocalización solo del propio origen, el resto desactivado. Desplegado y verificado en producción |
 | Otros encabezados (`X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, COOP) | Cumple (`helmet`) |
 | Cookies seguras | Cumple (`HttpOnly`, `Secure`, `SameSite=Strict`, ruta `/api/auth`) |
 | Validación en el cliente y el servidor, RBAC | Cumple; permiso nuevo `calidad:consultar` solo para el administrador (`backend/tests/metricas.test.js`) |
@@ -227,9 +258,9 @@ strict-transport-security: max-age=31536000; includeSubDomains
 
 | Prioridad | Hallazgo | Siguiente paso |
 |---|---|---|
-| Alta | La versión desplegada no tiene `Permissions-Policy`, el nonce de estilos ni `robots.txt` | Desplegar y repetir `curl -I` y `npm run auditoria -- --url https://cuidagro.onrender.com` con el servicio despierto; archivar el resultado en `docs/auditoria/` |
+| Resuelto | La versión desplegada no tenía `Permissions-Policy`, el nonce de estilos ni `robots.txt` | Desplegado el 2026-11-27 y medido en producción (sección 3.5) |
 | Alta | Prueba en dispositivo real: instalación, atajos y capturas del manifiesto, cámara, GPS, modo avión, push | Seguir el guion de `docs/fases/fase-09-despliegue.md` |
-| Media | Rendimiento móvil de `/` (81) y `/consumos` (84) bajo 85 con la CPU emulada 4x | Reducir el JavaScript inicial: revisar qué entra en los dos archivos grandes, precargar la ruta de inicio y evaluar dividir lo que no se usa en la primera pantalla; medir de nuevo con `--repeticiones 3` |
+| Media | Rendimiento móvil variable por el tiempo de bloqueo del arranque de JavaScript: en local `/` (81) y `/consumos` (84); en producción `/reportes` (81) y `/espacios` (83 móvil, 88 escritorio), con corridas de hasta 97-100 | Reducir el JavaScript inicial: revisar qué entra en los dos archivos grandes, precargar la ruta de inicio y evaluar dividir lo que no se usa en la primera pantalla; medir de nuevo con `--repeticiones 3` |
 | Media | LCP móvil de `/` (3,6 s) y `/espacios` (3,0 s) sobre 2,5 s en laboratorio | Mismo trabajo anterior; confirmar con datos de campo en `/calidad` antes de invertir más |
 | Media | Sin datos de campo | Esperar tráfico real y revisar `/calidad` (p75 por ruta y dispositivo) |
 | Media | Sin integración continua | Crear `.github/workflows` con pruebas de backend y frontend y `npm run auditoria` |
