@@ -30,6 +30,7 @@ import { MovimientosMedicamentoDialogo } from './movimientos-medicamento-dialogo
     </div>
 
     @if (!fincaId()) {
+      @if (fincasListas()) {
       <div class="vacio">
         <img class="vacio-escena" src="img/finca.webp" alt="" width="720" height="540" loading="lazy" />
         Aún no hay una finca para trabajar.
@@ -37,6 +38,7 @@ import { MovimientosMedicamentoDialogo } from './movimientos-medicamento-dialogo
           <a routerLink="/fincas">Crea una finca</a> primero.
         }
       </div>
+      }
     } @else {
       <div class="filtros">
         <input class="input" type="search" placeholder="Buscar por nombre" aria-label="Buscar por nombre"
@@ -180,6 +182,7 @@ export class Medicamentos {
   protected readonly fecha = formatearFecha;
 
   protected readonly fincaId = this.fincaActiva.id;
+  protected readonly fincasListas = this.fincaActiva.cargada;
   protected readonly puedeGestionar = computed(() => {
     this.auth.usuario();
     return this.auth.tienePermiso('medicamentos:gestionar');

@@ -33,6 +33,9 @@ const CACHE_SHELL = 'cuidagro-shell-' + VERSION;
 // cerrar sesión (mensaje BORRAR_CACHE_API) porque los datos son de un usuario.
 const CACHE_API = 'cuidagro-api';
 const PREFIJO_SHELL = 'cuidagro-shell-';
+// Máximo de respuestas guardadas en la caché de la API. Al superarlo se borran
+// las más antiguas (la caché devuelve las claves en orden de inserción).
+const MAX_ENTRADAS_API = 150;
 
 // Si la red tarda más que esto y hay una copia guardada, se muestra la copia
 // (conexión "lie-fi": hay señal pero no llegan datos).
@@ -140,7 +143,7 @@ self.addEventListener('fetch', (evento) => {
   if (url.pathname.startsWith('/api/auth/')) return;
 
   if (url.pathname.startsWith('/api/')) {
-    evento.respondWith(redPrimeroApi(peticion));
+    evento.respondWith(redPrimeroApi(peticion, evento));
     return;
   }
   if (peticion.mode === 'navigate') {
@@ -187,12 +190,20 @@ async function redPrimeroNavegacion(peticion) {
  * la app avise "Datos guardados, pueden no estar al día". Sin copia, el error
  * de red llega a la app tal cual.
  */
-async function redPrimeroApi(peticion) {
+async function redPrimeroApi(peticion, evento) {
   const cache = await caches.open(CACHE_API);
 
   const red = fetch(peticion).then((respuesta) => {
     // Solo se guardan respuestas correctas: nunca un 401 ni un 500.
-    if (respuesta.ok) cache.put(peticion, respuesta.clone());
+    if (respuesta.ok) {
+      const guardado = cache.put(peticion, respuesta.clone()).then(() => limitarCache(cache, MAX_ENTRADAS_API));
+      try {
+        evento.waitUntil(guardado);
+      } catch {
+        // El evento ya terminó (respuesta tardía): el guardado sigue por su cuenta.
+      }
+      guardado.catch(() => undefined);
+    }
     return respuesta;
   });
   // Si la petición pierde la carrera contra el temporizador y falla después,
@@ -214,6 +225,16 @@ async function redPrimeroApi(peticion) {
   }
 }
 
+/*
+ * Límite de entradas: si la caché pasa del máximo, borra las más antiguas
+ * (orden de inserción) hasta quedar en el máximo.
+ */
+async function limitarCache(cache, maximo) {
+  const claves = await cache.keys();
+  const sobran = claves.length - maximo;
+  for (let i = 0; i < sobran; i++) await cache.delete(claves[i]);
+}
+
 /* Devuelve una copia de la respuesta con la cabecera X-Desde-Cache. */
 async function marcarDesdeCache(respuesta) {
   const cabeceras = new Headers(respuesta.headers);
@@ -231,6 +252,7 @@ async function marcarDesdeCache(respuesta) {
 /*
  *   SKIP_WAITING      La app pide activar ya la versión nueva (botón "Actualizar").
  *   BORRAR_CACHE_API  Al cerrar sesión: los datos guardados eran de ese usuario.
+ *   VERSION           La app pregunta qué versión corre (se responde por el puerto recibido).
  */
 self.addEventListener('message', (evento) => {
   const tipo = evento.data && evento.data.tipo;
@@ -238,6 +260,8 @@ self.addEventListener('message', (evento) => {
     self.skipWaiting();
   } else if (tipo === 'BORRAR_CACHE_API') {
     evento.waitUntil(caches.delete(CACHE_API));
+  } else if (tipo === 'VERSION' && evento.ports && evento.ports[0]) {
+    evento.ports[0].postMessage(VERSION);
   }
 });
 

@@ -6,9 +6,17 @@ import { Auth } from './auth';
 import { ColaOffline } from './cola-offline';
 import { Conexion } from './conexion';
 import { mensajeDeError } from './errores';
-import { decidirRespuesta, ElementoCola, elementosPorEnviar, NuevoPendiente, peticionDe } from './offline-logica';
+import {
+  decidirRespuesta,
+  ElementoCola,
+  elementosPorEnviar,
+  mensajeSincronizacion,
+  NuevoPendiente,
+  peticionDe,
+} from './offline-logica';
 
 const ETIQUETA_SYNC = 'cuidagro-sync';
+const DURACION_AVISO_MS = 5000;
 
 type RegistroConSync = ServiceWorkerRegistration & { sync?: { register(etiqueta: string): Promise<void> } };
 
@@ -28,6 +36,9 @@ export class Sincronizador {
   readonly sincronizando = signal(false);
   /** Sube cada vez que algo se envió: las pantallas pueden recargar sus listas. */
   readonly enviados = signal(0);
+  /** Aviso "Se enviaron N registros pendientes." que se muestra 5 segundos al terminar una ronda. */
+  readonly aviso = signal<string | null>(null);
+  private temporizadorAviso: ReturnType<typeof setTimeout> | undefined;
 
   /** Guarda en la cola y pide al navegador una sincronización en segundo plano. */
   async encolar(nuevo: Omit<NuevoPendiente, 'usuarioId'>): Promise<void> {
@@ -57,6 +68,7 @@ export class Sincronizador {
     const usuario = this.auth.usuario();
     if (this.sincronizando() || !usuario || !this.conexion.enLinea()) return;
     this.sincronizando.set(true);
+    const enviadosAntes = this.enviados();
     try {
       // Si la sesión se restauró sin red, primero hay que conseguir un token.
       if (this.auth.sinConexion() || !this.auth.accessToken) {
@@ -74,7 +86,15 @@ export class Sincronizador {
     } finally {
       await this.cola.refrescar();
       this.sincronizando.set(false);
+      this.avisar(mensajeSincronizacion(this.enviados() - enviadosAntes, this.cola.total()));
     }
+  }
+
+  private avisar(mensaje: string | null): void {
+    if (!mensaje) return;
+    clearTimeout(this.temporizadorAviso);
+    this.aviso.set(mensaje);
+    this.temporizadorAviso = setTimeout(() => this.aviso.set(null), DURACION_AVISO_MS);
   }
 
   /** Devuelve falso si hay que cortar la ronda (sin red, 401, 5xx). */

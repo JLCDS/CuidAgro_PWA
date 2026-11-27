@@ -24,6 +24,7 @@ import { MovimientosDialogo } from './movimientos-dialogo';
     </div>
 
     @if (!fincaId()) {
+      @if (fincasListas()) {
       <div class="vacio">
         <img class="vacio-escena" src="img/finca.webp" alt="" width="720" height="540" loading="lazy" />
         Aún no hay una finca para trabajar.
@@ -31,6 +32,7 @@ import { MovimientosDialogo } from './movimientos-dialogo';
           <a routerLink="/fincas">Crea una finca</a> primero.
         }
       </div>
+      }
     } @else {
       <div class="filtros">
         <input class="input" type="search" placeholder="Buscar por nombre" aria-label="Buscar por nombre"
@@ -162,6 +164,7 @@ export class Alimentos {
   protected readonly gramos = formatearGramos;
 
   protected readonly fincaId = this.fincaActiva.id;
+  protected readonly fincasListas = this.fincaActiva.cargada;
   protected readonly puedeGestionar = computed(() => {
     this.auth.usuario();
     return this.auth.tienePermiso('alimentos:gestionar');

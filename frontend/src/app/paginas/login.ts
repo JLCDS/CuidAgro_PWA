@@ -1,12 +1,13 @@
 import { Component, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { CampoPassword } from '../compartido/campo-password';
 import { Auth } from '../core/auth';
 import { mensajeDeError } from '../core/errores';
 
 @Component({
   selector: 'app-login',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, CampoPassword],
   template: `
     <main class="fondo">
       <picture class="foto" aria-hidden="true">
@@ -40,8 +41,10 @@ import { mensajeDeError } from '../core/errores';
 
           <div class="campo">
             <label for="password">Contraseña</label>
-            <input id="password" class="input" type="password" formControlName="password" autocomplete="current-password"
-              [class.invalido]="invalido('password')" />
+            <app-campo-password>
+              <input id="password" class="input" type="password" formControlName="password" autocomplete="current-password"
+                [class.invalido]="invalido('password')" />
+            </app-campo-password>
             @if (invalido('password')) {
               <span class="error-campo">Ingresa tu contraseña.</span>
             }

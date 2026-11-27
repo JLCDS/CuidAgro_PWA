@@ -116,3 +116,17 @@ export function claveVapidABytes(base64Url: string): Uint8Array<ArrayBuffer> {
   for (let i = 0; i < binario.length; i++) bytes[i] = binario.charCodeAt(i);
   return bytes;
 }
+
+/**
+ * Aviso al terminar una ronda de sincronización. Sin envíos exitosos no hay aviso.
+ * `quedan` son los registros que siguen en la cola (pendientes o con error).
+ */
+export function mensajeSincronizacion(enviados: number, quedan: number): string | null {
+  if (enviados <= 0) return null;
+  if (quedan <= 0) {
+    return enviados === 1 ? 'Se envió 1 registro pendiente.' : `Se enviaron ${enviados} registros pendientes.`;
+  }
+  const envio = enviados === 1 ? 'Se envió 1' : `Se enviaron ${enviados}`;
+  const resto = quedan === 1 ? 'queda 1 pendiente' : `quedan ${quedan} pendientes`;
+  return `${envio}; ${resto}.`;
+}

@@ -30,6 +30,11 @@ body {
   min-height: 100%;
 }
 
+/* Reserva el ancho de la barra de desplazamiento para que el contenido no se mueva al aparecer. */
+html {
+  scrollbar-gutter: stable;
+}
+
 body {
   background: var(--crema);
   color: var(--texto);

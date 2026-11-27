@@ -59,7 +59,7 @@ describe('vacunos - crear', () => {
   it('acepta fechaLlegada de hoy', async () => {
     const finca = await crearFinca();
     const { bearer } = await sesionDe('VETERINARIO', [finca.id]);
-    const hoy = new Date().toISOString().slice(0, 10);
+    const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
     const r = await crear(bearer, finca.id, { fechaLlegada: hoy });
     expect(r.fechaLlegada).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });

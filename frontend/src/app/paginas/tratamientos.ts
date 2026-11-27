@@ -25,6 +25,7 @@ import { TratamientoForm } from './tratamiento-form';
     </div>
 
     @if (!fincaId()) {
+      @if (fincasListas()) {
       <div class="vacio">
         <img class="vacio-escena" src="img/finca.webp" alt="" width="720" height="540" loading="lazy" />
         Aún no hay una finca para trabajar.
@@ -32,6 +33,7 @@ import { TratamientoForm } from './tratamiento-form';
           <a routerLink="/fincas">Crea una finca</a> primero.
         }
       </div>
+      }
     } @else {
       <div class="filtros-trat">
         <select class="input" aria-label="Filtrar por animal o lote" [value]="sujeto()" (change)="cambiar(sujeto, $any($event.target).value)">
@@ -179,6 +181,7 @@ export class Tratamientos {
   protected readonly cantidad = (t: Tratamiento) => formatearCantidad(t.dosis, t.medicamento.unidad);
 
   protected readonly fincaId = inject(FincaActiva).id;
+  protected readonly fincasListas = inject(FincaActiva).cargada;
   protected readonly puedeRegistrar = computed(() => {
     this.auth.usuario();
     return this.auth.tienePermiso('tratamientos:registrar');

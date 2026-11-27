@@ -61,7 +61,7 @@ describe('lotes - crear', () => {
     const { bearer } = await sesionDe('VETERINARIO', [finca.id]);
     await crear(bearer, finca.id, { nombre: 'Aa', edadMinSemanas: 0, edadMaxSemanas: 0, cantidad: 1 });
     await crear(bearer, finca.id, { nombre: 'Bb', edadMinSemanas: 520, edadMaxSemanas: 520, cantidad: 100000 });
-    const hoy = new Date().toISOString().slice(0, 10);
+    const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
     const r = await crear(bearer, finca.id, { nombre: 'Cc', fechaIngreso: hoy });
     expect(r.fechaIngreso).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });

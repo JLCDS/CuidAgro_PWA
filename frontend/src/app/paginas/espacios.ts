@@ -21,6 +21,7 @@ import { RacionesTabla } from './raciones-tabla';
     </div>
 
     @if (!fincaId()) {
+      @if (fincasListas()) {
       <div class="vacio">
         <img class="vacio-escena" src="img/finca.webp" alt="" width="720" height="540" loading="lazy" />
         Aún no hay una finca para trabajar.
@@ -28,6 +29,7 @@ import { RacionesTabla } from './raciones-tabla';
           <a routerLink="/fincas">Crea una finca</a> primero.
         }
       </div>
+      }
     } @else {
       <div class="filtros-espacios">
         <select class="input" aria-label="Filtrar por estado" [value]="estado()" (change)="cambiarEstado($any($event.target).value)">
@@ -46,7 +48,7 @@ import { RacionesTabla } from './raciones-tabla';
       @if (cargando()) {
         <p class="suave" role="status">Cargando…</p>
       } @else if (espacios().length === 0 && !error()) {
-        <div class="vacio"><img class="vacio-objeto" src="img/vacio-aves.webp" alt="" width="320" height="320" loading="lazy" />
+        <div class="vacio"><img class="vacio-objeto" src="img/vacio-aves.webp" alt="" width="320" height="320" />
           {{ estado() === 'ACTIVO' ? 'Aún no hay espacios. Crea los cuadrantes y zonas del galpón.' : 'No hay espacios dados de baja.' }}</div>
       } @else if (espacios().length > 0) {
         <ul class="rejilla-espacios">
@@ -91,7 +93,10 @@ import { RacionesTabla } from './raciones-tabla';
         </ul>
       }
 
-      <app-raciones-tabla [fincaId]="fincaId()!" />
+      <!-- Se muestra al terminar de cargar la lista para que no se desplace cuando esta aparece. -->
+      @if (!cargando()) {
+        <app-raciones-tabla [fincaId]="fincaId()!" />
+      }
     }
 
     @if (formularioAbierto()) {
@@ -129,6 +134,7 @@ export class Espacios {
   protected readonly tipos = TIPOS_ESPACIO;
   protected readonly etiqueta = etiquetaDe;
   protected readonly fincaId = this.fincaActiva.id;
+  protected readonly fincasListas = this.fincaActiva.cargada;
 
   protected readonly puedeGestionar = computed(() => {
     this.auth.usuario();

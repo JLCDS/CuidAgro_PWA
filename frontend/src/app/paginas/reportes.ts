@@ -41,8 +41,10 @@ type Campo = 'desde' | 'hasta' | 'agrupacion' | 'sujeto' | 'vacunoId' | 'loteId'
     </div>
 
     @if (!fincaId()) {
+      @if (fincasListas()) {
       <div class="vacio">
         <img class="vacio-escena" src="img/finca.webp" alt="" width="720" height="540" loading="lazy" /> Aún no hay una finca para trabajar. <a routerLink="/fincas">Crea una finca</a> primero.</div>
+      }
     } @else {
       <form class="tarjeta pila no-imprimir" (submit)="consultar($event)" novalidate>
         <div class="atajos" role="group" aria-label="Atajos de rango">
@@ -245,6 +247,7 @@ export class Reportes {
   }
 
   protected readonly fincaId = this.fincaActiva.id;
+  protected readonly fincasListas = this.fincaActiva.cargada;
   protected readonly fincaNombre = computed(() => this.fincaActiva.fincas().find((f) => f.id === this.fincaId())?.nombre ?? '');
 
   protected readonly desde = signal(rangoDeAtajo('ESTE_MES', hoyBogota()).desde);

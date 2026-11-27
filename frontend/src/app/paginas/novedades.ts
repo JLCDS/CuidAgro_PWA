@@ -35,6 +35,7 @@ import { NovedadForm } from './novedad-form';
     </div>
 
     @if (!fincaId()) {
+      @if (fincasListas()) {
       <div class="vacio">
         <img class="vacio-escena" src="img/finca.webp" alt="" width="720" height="540" loading="lazy" />
         Aún no hay una finca para trabajar.
@@ -42,6 +43,7 @@ import { NovedadForm } from './novedad-form';
           <a routerLink="/fincas">Crea una finca</a> primero.
         }
       </div>
+      }
     } @else {
       <div class="filtros-nov">
         <select class="input" aria-label="Filtrar por estado" [value]="estado()" (change)="cambiar(estado, $any($event.target).value)">
@@ -162,6 +164,7 @@ export class Novedades {
   protected readonly fechaHora = formatearFechaHora;
 
   protected readonly fincaId = inject(FincaActiva).id;
+  protected readonly fincasListas = inject(FincaActiva).cargada;
   protected readonly puedeCrearFincas = computed(() => {
     this.auth.usuario();
     return this.auth.tienePermiso('fincas:gestionar');

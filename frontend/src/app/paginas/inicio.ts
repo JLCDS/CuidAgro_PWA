@@ -17,7 +17,7 @@ import { GraficoBarras } from './grafico-barras';
       <div class="pila">
         <div class="cabecera-pagina">
           <header class="portada">
-            <img src="img/cabecera-inicio.webp" alt="" width="1600" height="533" decoding="async" />
+            <img src="img/cabecera-inicio.webp" srcset="img/cabecera-inicio-640.webp 640w, img/cabecera-inicio-800.webp 800w, img/cabecera-inicio.webp 1600w" sizes="(min-width: 720px) 880px, 100vw" alt="" width="1600" height="533" fetchpriority="high" />
             <div class="saludo">
               <h1>Hola, {{ u.nombre }}</h1>
               <p>{{ rol() }}@if (panel(); as p) { · {{ p.finca.nombre }} }</p>
@@ -34,6 +34,7 @@ import { GraficoBarras } from './grafico-barras';
         </div>
 
         @if (!fincaId()) {
+          @if (fincasListas()) {
           <div class="vacio">
             <img class="vacio-escena" src="img/finca.webp" alt="" width="720" height="540" loading="lazy" />
             Aún no hay una finca para trabajar.
@@ -43,6 +44,7 @@ import { GraficoBarras } from './grafico-barras';
               Pide al administrador que te asigne una.
             }
           </div>
+          }
         } @else {
           @if (error(); as mensaje) {
             <p class="alerta" role="alert">{{ mensaje }}</p>
@@ -154,7 +156,8 @@ import { GraficoBarras } from './grafico-barras';
           }
         }
 
-        @if (u.rol === 'ADMINISTRADOR') {
+        <!-- Debajo del panel: se muestra cuando este ya cargó, para que no se desplace al llegar los datos. -->
+        @if (u.rol === 'ADMINISTRADOR' && fincasListas() && !cargando()) {
           <section class="tarjeta pila">
             <h2>Administración</h2>
             <p class="suave">Registra las fincas y crea las cuentas de quienes trabajan en ellas.</p>
@@ -214,6 +217,7 @@ export class Inicio {
   private readonly fincaActiva = inject(FincaActiva);
 
   protected readonly fincaId = this.fincaActiva.id;
+  protected readonly fincasListas = this.fincaActiva.cargada;
   protected readonly panel = signal<Dashboard | null>(null);
   protected readonly cargando = signal(false);
   protected readonly error = signal<string | null>(null);

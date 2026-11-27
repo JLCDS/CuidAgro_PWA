@@ -18,6 +18,7 @@ Visión general del proyecto completo (HU oficiales, arquitectura, seguridad, PW
 | 8. PWA y offline | HU020, HU021 | Terminada, en revisión | [fase-08-pwa-offline.md](fase-08-pwa-offline.md) |
 | 9. Pruebas y despliegue | — | Desplegado en Render; falta la prueba en Android | [fase-09-despliegue.md](fase-09-despliegue.md) |
 | 10. Espacios del galpón y ración por semana | Amplía la HU de reportes | Terminada, en revisión | [fase-10-espacios-galpon.md](fase-10-espacios-galpon.md) |
+| 11. Auditoría de la PWA y seguridad | Sesiones 22 y 23 | Terminada, en revisión | [fase-11-auditoria-pwa.md](fase-11-auditoria-pwa.md) |
 
 ## Decisiones abiertas
 

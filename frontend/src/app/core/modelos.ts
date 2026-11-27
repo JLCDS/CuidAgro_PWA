@@ -19,7 +19,8 @@ export type Permiso =
   | 'medicamentos:consultar'
   | 'medicamentos:gestionar'
   | 'tratamientos:consultar'
-  | 'tratamientos:registrar';
+  | 'tratamientos:registrar'
+  | 'calidad:consultar';
 
 export const ROLES: { valor: Rol; etiqueta: string }[] = [
   { valor: 'ADMINISTRADOR', etiqueta: 'Administrador' },

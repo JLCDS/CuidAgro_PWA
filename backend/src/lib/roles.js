@@ -31,6 +31,7 @@ const MATRIZ_PERMISOS = {
     'tratamientos:registrar',
     'dashboard:consultar',
     'reportes:consultar',
+    'calidad:consultar',
   ],
   VETERINARIO: [
     'fincas:consultar',

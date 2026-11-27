@@ -24,7 +24,7 @@ import { ConsumoPanel } from './consumo-panel';
       } @else {
         <app-consumo-panel tipo="lotes" [fincaId]="id" />
       }
-    } @else {
+    } @else if (fincasListas()) {
       <div class="vacio">
         <img class="vacio-escena" src="img/finca.webp" alt="" width="720" height="540" loading="lazy" />
         Aún no hay una finca para trabajar.
@@ -43,6 +43,7 @@ export class Consumos {
   private readonly auth = inject(Auth);
 
   protected readonly fincaId = inject(FincaActiva).id;
+  protected readonly fincasListas = inject(FincaActiva).cargada;
   protected readonly tab = signal<TipoConsumo>('vacunos');
   protected readonly puedeCrearFincas = computed(() => {
     this.auth.usuario();

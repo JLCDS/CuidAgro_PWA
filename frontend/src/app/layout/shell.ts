@@ -113,6 +113,13 @@ const MENU: ItemMenu[] = [
     permiso: 'fincas:gestionar',
     icono: 'M12 21s-7-6.300-7-12a7 7 0 0114 0c0 5.700-7 12-7 12zM12 11.500a2.500 2.500 0 100-5 2.500 2.500 0 000 5',
   },
+  {
+    ruta: '/calidad',
+    etiqueta: 'Calidad',
+    exacto: false,
+    permiso: 'calidad:consultar',
+    icono: 'M12 14l4-4M3.300 17a10 10 0 1117.400 0',
+  },
 ];
 
 @Component({

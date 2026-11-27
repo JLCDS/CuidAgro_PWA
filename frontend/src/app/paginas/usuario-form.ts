@@ -8,6 +8,7 @@ import {
   Validators,
 } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { CampoPassword } from '../compartido/campo-password';
 import { Modal } from '../compartido/modal';
 import { mensajeDeError } from '../core/errores';
 import { Finca, Rol, ROLES, UsuarioDetalle } from '../core/modelos';
@@ -22,7 +23,7 @@ type CampoTexto = 'nombre' | 'correo' | 'password';
 
 @Component({
   selector: 'app-usuario-form',
-  imports: [ReactiveFormsModule, RouterLink, Modal],
+  imports: [ReactiveFormsModule, RouterLink, Modal, CampoPassword],
   template: `
     <app-modal [titulo]="usuario() ? 'Editar usuario' : 'Nuevo usuario'" (cerrado)="cerrado.emit()">
       <form class="modal-cuerpo" [formGroup]="form" (ngSubmit)="guardar()" novalidate>
@@ -48,7 +49,9 @@ type CampoTexto = 'nombre' | 'correo' | 'password';
 
         <div class="campo">
           <label for="u-password">{{ usuario() ? 'Nueva contraseña (opcional)' : 'Contraseña inicial' }}</label>
-          <input id="u-password" class="input" type="password" autocomplete="new-password" formControlName="password" [class.invalido]="invalido('password')" />
+          <app-campo-password>
+            <input id="u-password" class="input" type="password" autocomplete="new-password" formControlName="password" [class.invalido]="invalido('password')" />
+          </app-campo-password>
           @if (invalido('password')) {
             <span class="error-campo">Debe tener entre 8 y 128 caracteres.</span>
           } @else if (usuario()) {

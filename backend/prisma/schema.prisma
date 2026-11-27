@@ -583,3 +583,39 @@ model Foto {
 
   @@map("fotos")
 }
+
+enum NombreMetrica {
+  LCP
+  INP
+  CLS
+  FCP
+  TTFB
+}
+
+enum CalificacionMetrica {
+  BUENA
+  MEJORABLE
+  MALA
+}
+
+enum DispositivoMetrica {
+  MOVIL
+  ESCRITORIO
+}
+
+/// Core Web Vitals medidos en los dispositivos reales. No guarda usuario ni IP.
+/// `valor` va en ms (CLS sin unidad); `ruta` es el patrón de la ruta de Angular, no la URL concreta.
+model MetricaWeb {
+  id           String              @id @default(uuid()) @db.Uuid
+  nombre       NombreMetrica
+  valor        Float
+  calificacion CalificacionMetrica
+  ruta         String
+  dispositivo  DispositivoMetrica
+  conexion     String?
+  version      String?
+  createdAt    DateTime            @default(now()) @map("created_at")
+
+  @@index([nombre, createdAt])
+  @@map("metricas_web")
+}

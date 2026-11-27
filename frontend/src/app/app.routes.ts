@@ -98,6 +98,12 @@ export const routes: Routes = [
         loadComponent: () => import('./paginas/fincas').then((m) => m.Fincas),
       },
       {
+        path: 'calidad',
+        title: 'Calidad · CuidAgro',
+        canActivate: [permisoGuard('calidad:consultar')],
+        loadComponent: () => import('./paginas/calidad').then((m) => m.Calidad),
+      },
+      {
         path: 'no-autorizado',
         title: 'Sin permiso · CuidAgro',
         loadComponent: () => import('./paginas/no-autorizado').then((m) => m.NoAutorizado),

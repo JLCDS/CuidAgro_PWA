@@ -29,8 +29,11 @@ export class FincaActiva {
 
   private readonly disponibles = signal<FincaResumen[]>([]);
   private readonly elegida = signal<string | null>(leerGuardada());
+  private readonly listas = signal(false);
 
   readonly fincas = this.disponibles.asReadonly();
+  /** Verdadero cuando ya se conoce la lista de fincas; evita mostrar "sin finca" mientras llega la respuesta. */
+  readonly cargada = this.listas.asReadonly();
   /** La elegida si sigue disponible; si no, la primera. */
   readonly id = computed(() => {
     const lista = this.disponibles();
@@ -43,10 +46,12 @@ export class FincaActiva {
       const usuario = this.auth.usuario();
       if (!usuario) {
         this.disponibles.set([]);
+        this.listas.set(false);
       } else if (usuario.rol === 'ADMINISTRADOR') {
         this.recargar();
       } else {
         this.disponibles.set(usuario.fincas);
+        this.listas.set(true);
       }
     });
   }
@@ -60,8 +65,11 @@ export class FincaActiva {
   recargar(): void {
     if (this.auth.usuario()?.rol !== 'ADMINISTRADOR') return;
     this.fincasApi.listar().subscribe({
-      next: (fincas) => this.disponibles.set(fincas.map(({ id, nombre }) => ({ id, nombre }))),
-      error: () => undefined,
+      next: (fincas) => {
+        this.disponibles.set(fincas.map(({ id, nombre }) => ({ id, nombre })));
+        this.listas.set(true);
+      },
+      error: () => this.listas.set(true),
     });
   }
 }
